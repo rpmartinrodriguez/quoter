@@ -1,10 +1,8 @@
 <template>
   <v-container fluid>
     <v-row>
-      <!-- Products List column -->
       <v-col cols="12" md="4">
         <v-card flat>
-          <!-- List actions -->
           <template v-slot:title>
             <ClientOnly>
               <div class="d-flex align-center w-100">
