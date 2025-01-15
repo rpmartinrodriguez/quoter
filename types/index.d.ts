@@ -1,5 +1,5 @@
 declare global {
-  interface IProduct {
+  interface Product {
     $id?: string;
     color?: string;
     detail: string;
@@ -8,54 +8,15 @@ declare global {
     calculations?: Calculation[];
   }
 
-  interface IDeposit {
+  interface Deposit {
     $id?: string;
     percentage: number;
   }
 
-  interface IQuote {
+  interface Quote {
     $id?: string;
     quantity: number;
     percentage: number;
-  }
-
-  interface ISignUpForm {
-    sponsor: string;
-    name: string;
-    role: string | null;
-    email: string;
-    password: string;
-  }
-
-  interface ISponsor {
-    $id: string;
-    name: string;
-    code: string;
-  }
-  interface ISponsored {
-    $id: string;
-    name: string;
-    email: string;
-    role: string;
-  }
-
-  interface IUserPref {
-    theme: string;
-  }
-
-  interface IMetaData {
-    sponsor_code: string | null;
-    sponsor: ISponsor;
-  }
-
-  interface IUser {
-    $id: string;
-    name: string;
-    email: string;
-    prefs: IUserPref;
-    status: boolean;
-    role: string;
-    sponsor_code: number | null;
   }
 }
 

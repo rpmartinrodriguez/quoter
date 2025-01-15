@@ -40,11 +40,11 @@ export default defineEventHandler(async (event) => {
   // Read the xlsx file
   try {
     const rows: any = await readXlsxFile(fileBody.data);
-    const products: IProduct[] = [];
+    const products: Product[] = [];
 
     for (let i = 0; i < rows.length; i++) {
       if (i !== 0) {
-        const product: IProduct = {
+        const product: Product = {
           detail: rows[i][0],
           composition: rows[i][1],
           price: rows[i][2],
@@ -61,16 +61,24 @@ export default defineEventHandler(async (event) => {
       [Query.limit(500)]
     );
     // 2- Delete all products
-    const deletePromises = productsInDb.documents.map((pidb) => {
+    for (const product of productsInDb.documents) {
+      await databases.deleteDocument(
+        config.public.database,
+        config.public.cProducts,
+        product.$id
+      );
+    }
+    /* const deletePromises = productsInDb.documents.map((pidb) => {
       return databases.deleteDocument(
         config.public.database,
         config.public.cProducts,
         pidb.$id
       );
     });
-    await Promise.all(deletePromises);
+
+    await Promise.all(deletePromises); */
     // 3- insert new products
-    const createPromises = products.map((p) => {
+    /* const createPromises = products.map((p) => {
       return databases.createDocument(
         config.public.database,
         config.public.cProducts,
@@ -78,7 +86,16 @@ export default defineEventHandler(async (event) => {
         p
       );
     });
-    await Promise.all(createPromises);
+    await Promise.all(createPromises); */
+    for (const product of products) {
+      // 2- Create new product in DB
+      await databases.createDocument(
+        config.public.database,
+        config.public.cProducts,
+        ID.unique(),
+        product
+      );
+    }
 
     // Delete files in uploads directory
     readdir(dir, (err, files) => {

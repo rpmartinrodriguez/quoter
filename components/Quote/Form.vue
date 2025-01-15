@@ -66,7 +66,7 @@
 interface IDepositForm {
   qLabel?: string;
   pLabel?: string;
-  state?: IQuote;
+  state?: Quote;
   showClear: boolean;
 }
 

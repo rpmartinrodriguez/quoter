@@ -1,9 +1,9 @@
 import { ID, Query } from "appwrite";
 
-const data: IProduct[] = [];
+const data: Product[] = [];
 
-const products = ref<IProduct[]>([]);
-const selected = ref<IProduct[]>([]);
+const products = ref<Product[]>([]);
+const selected = ref<Product[]>([]);
 
 export const useProducts = (init?: string) => {
   const config = useRuntimeConfig();
@@ -45,6 +45,7 @@ export const useProducts = (init?: string) => {
 
   return {
     getProducts,
+    // createProducts,
     list: products,
     selected,
   };

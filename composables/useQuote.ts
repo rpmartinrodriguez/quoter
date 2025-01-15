@@ -1,19 +1,17 @@
-import { ID, Query } from "appwrite";
+import { ID } from "appwrite";
 
-const quotes = ref<IQuote[]>([]);
+const quotes = ref<Quote[]>([]);
 
 export const useQuote = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
   const { parseQuotes } = useParse();
-  const { $id } = useSession();
 
   const getQuotes = async () => {
     try {
       const promise = await databases.listDocuments(
         config.public.database,
-        config.public.cQuotes,
-        [Query.equal("user_id", $id.value!), Query.orderDesc("quantity")]
+        config.public.cQuotes
       );
 
       if (promise.total > 0) quotes.value = parseQuotes(promise.documents);

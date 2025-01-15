@@ -3,13 +3,7 @@
     <v-col>
       <v-card flat>
         <v-card-title>
-          <v-btn
-            class="pr-2"
-            variant="text"
-            density="compact"
-            icon
-            to="/quoter"
-          >
+          <v-btn class="pr-2" variant="text" density="compact" icon to="/">
             <v-tooltip activator="parent" location="bottom">
               Volver a calculadora
             </v-tooltip>
@@ -24,8 +18,8 @@
               <h3 class="text-center mb-5">Opciones de Depósito</h3>
               <div class="d-flex flex-column ga-5">
                 <DepositForm
-                  v-for="(deposit, i) in deposits"
-                  :key="`${i}-${deposit}`"
+                  v-for="deposit in deposits"
+                  :key="deposit.$id"
                   :state="deposit"
                   :show-clear="false"
                 />
@@ -57,10 +51,6 @@
   </v-row>
 </template>
 <script lang="ts" setup>
-definePageMeta({
-  middleware: ["app"],
-});
-
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
 </script>

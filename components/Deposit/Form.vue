@@ -56,7 +56,7 @@
 <script lang="ts" setup>
 interface IDepositForm {
   label?: string;
-  state?: IDeposit;
+  state?: Deposit;
   showClear: boolean;
 }
 
@@ -75,7 +75,7 @@ const handleSaveClick = async () => {
   if (state) {
     await updateDeposit(state.$id!, deposit.value);
   } else {
-    await createDeposit(deposit.value!);
+    await createDeposit(deposit.value);
     deposit.value = null;
   }
 };

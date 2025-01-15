@@ -28,7 +28,6 @@ export default defineNuxtConfig({
       project: process.env.PROJECT,
       projectApiKey: process.env.PROJECT_API_KEY,
       database: process.env.DATABASE,
-      cUsersMetaData: process.env.C_USERS_META_DATA,
       cProducts: process.env.C_PRODUCTS,
       cDeposits: process.env.C_DEPOSITS,
       cQuotes: process.env.C_QUOTES,
