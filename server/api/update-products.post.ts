@@ -35,6 +35,8 @@ if (isDev) {
   const dir = "./uploads";
   if (!existsSync(dir)) mkdirSync(dir);
   await writeFile(`${dir}/${fileBody.filename}`, fileBody.data);
+} else {
+  console.log("ℹ️ Producción: se procesó archivo en memoria sin escribir en disco.");
 }
 
   // Read the xlsx file
@@ -100,14 +102,21 @@ if (isDev) {
     // Delete files in uploads directory
     if (isDev) {
   readdir('./uploads', (err, files) => {
-    if (err) return console.log("❌ Error al leer carpeta uploads:", err);
+    if (err) {
+      console.log("⚠️ Error al leer carpeta uploads:", err);
+      return;
+    }
 
     for (const file of files) {
       unlink(path.join('./uploads', file), (err) => {
-        if (err) console.log("❌ Error al borrar archivo:", err);
+        if (err) {
+          console.log("⚠️ Error al borrar archivo:", err);
+        }
       });
     }
   });
+} else {
+  console.log("ℹ️ Producción: no se eliminan archivos de disco.");
 }
 
     return {
