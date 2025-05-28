@@ -28,14 +28,14 @@ export default defineEventHandler(async (event) => {
   }
 
   // Define directory to store the file temporarily.
-  const dir = "./uploads";
-  // Check if directory exists.
-  if (!existsSync(dir)) mkdirSync(dir);
+  const isDev = process.env.NODE_ENV !== 'production';
+const fileBody = filesBody[0];
 
-  // Prepare the file upload into directory
-  const fileBody = filesBody[0];
-  const filePath = `./uploads/${fileBody.filename}`;
-  await writeFile(filePath, fileBody.data);
+if (isDev) {
+  const dir = "./uploads";
+  if (!existsSync(dir)) mkdirSync(dir);
+  await writeFile(`${dir}/${fileBody.filename}`, fileBody.data);
+}
 
   // Read the xlsx file
   try {
@@ -98,15 +98,17 @@ export default defineEventHandler(async (event) => {
     }
 
     // Delete files in uploads directory
-    readdir(dir, (err, files) => {
-      if (err) throw err;
+    if (isDev) {
+  readdir('./uploads', (err, files) => {
+    if (err) return console.log("❌ Error al leer carpeta uploads:", err);
 
-      for (const file of files) {
-        unlink(path.join(dir, file), (err) => {
-          if (err) throw err;
-        });
-      }
-    });
+    for (const file of files) {
+      unlink(path.join('./uploads', file), (err) => {
+        if (err) console.log("❌ Error al borrar archivo:", err);
+      });
+    }
+  });
+}
 
     return {
       success: true,
