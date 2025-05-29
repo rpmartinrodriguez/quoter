@@ -142,8 +142,13 @@ const saveXls = async () => {
     if (res && res.success) {
       success.value = true;
       errorMessage.value = "";
-      alert("✅ ¡Archivo Excel cargado exitosamente!");
-      getProducts();
+      getProducts(); // 🔄 refrescamos productos
+
+      // ✅ Cerramos modal y recargamos tabla
+      setTimeout(() => {
+        emits("reload");
+        emits("finish");
+      }, 1500); // da tiempo a mostrar el mensaje
     } else {
       console.warn("⚠️ Respuesta inesperada del backend:", res);
       errorMessage.value = "⚠️ El servidor respondió sin éxito.";
