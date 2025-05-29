@@ -17,25 +17,32 @@ const { products, selected, getProducts } = useProducts();
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
 
-// ⬇️ Se ejecuta al montar el componente
+// 🟢 Al montar el componente, obtenemos productos y actualizamos "selected"
 onMounted(async () => {
-  await getProducts(); // ✅ Espera a que se carguen los productos
+  await getProducts();
   console.log("🧪 Productos cargados desde Appwrite:", products.value);
 
-  if (selected.value.length === 0 && products.value.length > 0) {
+  if (products.value.length > 0) {
     selected.value = [...products.value];
     console.log("🧩 Selected seteado con productos:", selected.value);
+  } else {
+    console.warn("⚠️ No se encontraron productos al montar.");
   }
 });
 
 watchEffect(() => {
-  parsedProducts.value = selected.value.map((element) => ({
-    color: element.color!,
-    product: `<div class="text-center"><b>${element.detail}</b></div><div class="text-center my-3">${formatAsArs(element.price || 0)}</div>`,
-    deposit: fillDepositCell(element.price || 0),
-    rest: fillRestCell(element.price || 0),
-    quotes: calculateQuotes(element.price || 0),
-  }));
+  if (selected.value.length > 0) {
+    console.log("🎯 Productos seleccionados:", selected.value);
+    parsedProducts.value = selected.value.map((element) => ({
+      color: element.color!,
+      product: `<div class="text-center"><b>${element.detail}</b></div><div class="text-center my-3">${formatAsArs(element.price || 0)}</div>`,
+      deposit: fillDepositCell(element.price || 0),
+      rest: fillRestCell(element.price || 0),
+      quotes: calculateQuotes(element.price || 0),
+    }));
+  } else {
+    console.log("📭 selected vacío, esperando carga de productos...");
+  }
 });
 
 const fillDepositCell = (p: number) => {
@@ -143,12 +150,12 @@ const test = (event: any) => {
     \t•\tCantidad de cuotas: ${elem.dataset.quotes}
     \t•\tValor de cada cuota: ${elem.textContent.trim()}
 
-    Estamos seguros de que esta decisión cumplirá con todas tus expectativas. Cualquier consulta o duda que tengas, no dudes en contactarnos. ¡Gracias por confiar en nosotros! Royal Prestige!
+    ¡Gracias por confiar en nosotros! Royal Prestige!
 
     Links útiles:
-    \t•\tCurado de ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
-    \t•\tRecetas: https://www.royalprestige.com/ar/inspiracion/recetas
-    \t•\tInstagram: https://www.instagram.com/royalprestigeargoficial`;
+    - Curado de ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
+    - Recetas: https://www.royalprestige.com/ar/inspiracion/recetas
+    - Instagram: https://www.instagram.com/royalprestigeargoficial`;
 
     copy(source.value);
   }
