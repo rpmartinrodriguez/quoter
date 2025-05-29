@@ -44,16 +44,14 @@ if (isDev) {
     const rows: any = await readXlsxFile(fileBody.data);
     const products: Product[] = [];
 
-    for (let i = 0; i < rows.length; i++) {
-      if (i !== 0) {
-        const product: Product = {
-          detail: rows[i][0],
-          composition: rows[i][1],
-          price: rows[i][2],
-        };
-        products.push(product);
-      }
-    }
+    for (let i = 1; i < rows.length && i <= 10; i++) {
+  const product: Product = {
+    detail: rows[i][0],
+    composition: rows[i][1],
+    price: rows[i][2],
+  };
+  products.push(product);
+}
 
     // Delete all records from DB.
     // 1- First query all the products in database.
