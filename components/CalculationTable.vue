@@ -1,63 +1,3 @@
-<template>
-  <v-table>
-    <thead>
-      <tr>
-        <th class="text-center">Producto</th>
-        <th class="text-center">Depósito</th>
-        <th class="text-center">Monto a financiar</th>
-
-        <!-- Quotes headers -->
-        <th v-for="q in quotes" :key="q.$id" class="text-center">
-          {{ q.quantity }} cuotas ({{ q.percentage }}%)
-        </th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr
-        v-for="s in withCalculations"
-        :key="s.product.toLowerCase().replace(' ', '')"
-        :style="{
-          'background-color': `${s.color}`,
-        }"
-      >
-        <!-- Product Cell -->
-        <td v-html="s.product"></td>
-
-        <!-- Deposit -->
-        <td v-html="s.deposit" class="pa-0"></td>
-
-        <!-- To finance -->
-        <td v-html="s.rest" class="pa-0"></td>
-
-        <!-- Quotes cells -->
-        <td
-          v-for="(q, i) in s.quotes"
-          :key="`qas-${i}`"
-          class="pa-0 text-center"
-          v-html="q"
-        ></td>
-      </tr>
-    </tbody>
-    <tfoot>
-      <tr @click="test">
-        <td class="pa-0 text-right border-top-bold">
-          <strong class="mr-5">TOTAL</strong>
-          <br />
-          <br />
-          <strong class="mr-5">{{ formatAsArs(totals) }}</strong>
-        </td>
-        <td class="pa-0 text-right border-top-bold" v-html="totalDeposits"></td>
-        <td class="pa-0 text-right border-top-bold" v-html="totalRests"></td>
-        <td
-          v-for="(tq, i) in totalQuotes"
-          :key="`tq-${i}`"
-          class="pa-0 text-right border-top-bold"
-          v-html="tq"
-        ></td>
-      </tr>
-    </tfoot>
-  </v-table>
-</template>
 <script lang="ts" setup>
 import { useClipboard } from "@vueuse/core";
 interface IPCalculations {
@@ -71,7 +11,18 @@ interface IPCalculations {
 const { formatAsArs } = useFormatters();
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
-const { selected } = useProducts();
+const { products, selected, getProducts } = useProducts(); // ✅ reemplazo completo
+
+onMounted(() => {
+  getProducts();
+}); // ✅ obtiene productos al montar el componente
+
+watchEffect(() => {
+  if (selected.value.length === 0 && products.value.length > 0) {
+    selected.value = [...products.value];
+  }
+}); // ✅ sincroniza selected con los productos si está vacío
+
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
 
@@ -262,13 +213,3 @@ watchEffect(() => {
   }
 });
 </script>
-<style>
-.table {
-  border-spacing: 0;
-  width: 100%;
-}
-.cell {
-  border-bottom: thin solid rgba(0, 0, 0, 0.12);
-  height: 36px;
-}
-</style>
