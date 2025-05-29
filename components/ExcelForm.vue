@@ -126,6 +126,7 @@ const handleFileChange = (e: Event) => {
 const saveXls = async () => {
   loadings.excel = true;
   const fd = new FormData();
+
   if (files.value) {
     Array.from(files.value).forEach((file) => {
       fd.append("file", file);
@@ -133,30 +134,26 @@ const saveXls = async () => {
   }
 
   try {
-  const res = await $fetch("/api/update-products", {
-    method: "POST",
-    body: fd,
-  });
+    const res = await $fetch("/api/update-products", {
+      method: "POST",
+      body: fd,
+    });
 
-  // Si backend devuelve success: true
-  if (res && res.success) {
-    success.value = true;
-    errorMessage.value = "";
-    alert("✅ ¡Archivo Excel cargado exitosamente!");
-    getProducts();
-  } else {
-    errorMessage.value = "❌ Error al procesar el archivo Excel.";
-  }
+    if (res && res.success) {
+      success.value = true;
+      errorMessage.value = "";
+      alert("✅ ¡Archivo Excel cargado exitosamente!");
+      getProducts();
+    } else {
+      console.warn("⚠️ Respuesta inesperada del backend:", res);
+      errorMessage.value = "⚠️ El servidor respondió sin éxito.";
+    }
 
-  files.value = null;
-} catch (error: any) {
-  console.error("Error al subir archivo:", error);
-  if (error.statusMessage === "Error in loop") {
-    errorMessage.value = "⚠️ Excel con diferente estructura de data";
-  } else {
-    errorMessage.value = "❌ Error inesperado al subir archivo.";
+    files.value = null;
+  } catch (error: any) {
+    console.error("🛑 Error real del backend:", error);
+    errorMessage.value = `❌ Error inesperado: ${error.statusMessage || error.message || 'Sin mensaje.'}`;
   }
-}
 
   loadings.excel = false;
 };
