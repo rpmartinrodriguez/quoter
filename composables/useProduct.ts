@@ -35,7 +35,14 @@ export const useProducts = (init?: string) => {
         [Query.limit(500)]
       );
 
-      if (res.total > 0) products.value = parseProducts(res.documents);
+      if (res.total > 0) {
+        const parsed = parseProducts(res.documents);
+        products.value = parsed;
+        selected.value = parsed; // ✅ Esta línea asegura que los productos se muestren
+      } else {
+        products.value = [];
+        selected.value = []; // Limpiar si no hay productos
+      }
     } catch (error) {
       console.log("error on get products", error);
     }
