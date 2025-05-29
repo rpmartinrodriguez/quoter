@@ -133,18 +133,30 @@ const saveXls = async () => {
   }
 
   try {
-    await $fetch("/api/update-products", {
-      method: "POST",
-      body: fd,
-    });
-    files.value = null;
+  const res = await $fetch("/api/update-products", {
+    method: "POST",
+    body: fd,
+  });
+
+  // Si backend devuelve success: true
+  if (res && res.success) {
     success.value = true;
+    errorMessage.value = "";
+    alert("✅ ¡Archivo Excel cargado exitosamente!");
     getProducts();
-  } catch (error: any) {
-    if (error.statusMessage === "Error in loop") {
-      errorMessage.value = "Error: Excel con diferente estructura de data";
-    }
+  } else {
+    errorMessage.value = "❌ Error al procesar el archivo Excel.";
   }
+
+  files.value = null;
+} catch (error: any) {
+  console.error("Error al subir archivo:", error);
+  if (error.statusMessage === "Error in loop") {
+    errorMessage.value = "⚠️ Excel con diferente estructura de data";
+  } else {
+    errorMessage.value = "❌ Error inesperado al subir archivo.";
+  }
+}
 
   loadings.excel = false;
 };
