@@ -14,21 +14,29 @@ const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const { products, selected, getProducts } = useProducts();
 
+const parsedProducts = ref<IPCalculations[]>([]);
+const withCalculations = computed(() => parsedProducts.value);
+
+// ⬇️ Se ejecuta al montar el componente
 onMounted(async () => {
-  await getProducts();
+  await getProducts(); // ✅ Espera a que se carguen los productos
+  console.log("🧪 Productos cargados desde Appwrite:", products.value);
+
   if (selected.value.length === 0 && products.value.length > 0) {
     selected.value = [...products.value];
+    console.log("🧩 Selected seteado con productos:", selected.value);
   }
 });
 
 watchEffect(() => {
-  if (selected.value.length === 0 && products.value.length > 0) {
-    selected.value = [...products.value];
-  }
+  parsedProducts.value = selected.value.map((element) => ({
+    color: element.color!,
+    product: `<div class="text-center"><b>${element.detail}</b></div><div class="text-center my-3">${formatAsArs(element.price || 0)}</div>`,
+    deposit: fillDepositCell(element.price || 0),
+    rest: fillRestCell(element.price || 0),
+    quotes: calculateQuotes(element.price || 0),
+  }));
 });
-
-const parsedProducts = ref<IPCalculations[]>([]);
-const withCalculations = computed(() => parsedProducts.value);
 
 const fillDepositCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
@@ -145,16 +153,6 @@ const test = (event: any) => {
     copy(source.value);
   }
 };
-
-watchEffect(() => {
-  parsedProducts.value = selected.value.map((element) => ({
-    color: element.color!,
-    product: `<div class="text-center"><b>${element.detail}</b></div><div class="text-center my-3">${formatAsArs(element.price || 0)}</div>`,
-    deposit: fillDepositCell(element.price || 0),
-    rest: fillRestCell(element.price || 0),
-    quotes: calculateQuotes(element.price || 0),
-  }));
-});
 </script>
 
 <style>
