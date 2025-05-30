@@ -1,3 +1,81 @@
+<script lang="ts" setup>
+import { useWindowSize } from "@vueuse/core";
+
+interface Loading {
+  products: boolean;
+  passwordForm: boolean;
+  excelForm: boolean;
+}
+
+interface Dialog {
+  calculation: boolean;
+  excel: boolean;
+  deposits: boolean;
+  customCalculation: boolean;
+}
+
+const { formatAsArs } = useFormatters();
+const search = ref<string>("");
+const loadings = reactive<Loading>({
+  products: false,
+  passwordForm: false,
+  excelForm: false,
+});
+const dialogs = reactive<Dialog>({
+  calculation: false,
+  excel: false,
+  deposits: false,
+  customCalculation: false,
+});
+
+const { height: windowHeight } = useWindowSize();
+const dataTableHeight = computed(() => windowHeight.value - 196);
+
+// ✅ Cargamos productos y manejamos selección manual
+const { list: products, selected } = useProducts("get");
+const selectedPs = ref<Product[]>([]);
+
+// 🔄 Sincronizar con estado global
+watch(selectedPs, (newVal) => {
+  selected.value = [...newVal];
+});
+
+const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
+const headers = ref<Object[]>([
+  { align: "start", key: "detail", title: "Detalle" },
+  { align: "start", key: "composition", title: "Composición" },
+  { align: "start", key: "price", title: "Precio de lista" },
+]);
+
+const total = ref<number>(0);
+const newCustomCalculation = () => {
+  total.value = selectedPs.value.reduce(
+    (sum, prod) => sum + (prod.price || 0),
+    0
+  );
+  dialogs.customCalculation = true;
+};
+
+const productsDetails = computed<string[]>(() =>
+  selectedPs.value.map((p: Product) => p.detail)
+);
+
+const isSelected = (i: Product) =>
+  selectedPs.value.some((item: Product) => item.$id === i.$id);
+
+const toggleSelect = (i: Product) => {
+  const index = selectedPs.value.findIndex((sp) => sp.$id === i.$id);
+  if (index !== -1) {
+    selectedPs.value.splice(index, 1);
+  } else {
+    selectedPs.value.push(i);
+  }
+};
+
+useDeposit();
+useQuote();
+</script>
+
 <template>
   <v-container fluid>
     <v-row>
@@ -7,7 +85,6 @@
             <ClientOnly>
               <div class="d-flex align-center w-100">
                 <div class="w-100 px-1">Artículos</div>
-
                 <div class="d-flex align-center">
                   <v-btn
                     v-if="noneSelected"
@@ -64,6 +141,7 @@
               </div>
             </ClientOnly>
           </template>
+
           <template v-slot:text>
             <v-text-field
               v-model="search"
@@ -76,23 +154,22 @@
             ></v-text-field>
           </template>
 
-          <!-- Products -->
+          <!-- Tabla de productos -->
           <v-card-text>
             <v-data-table-virtual
               :height="dataTableHeight"
               :headers="headers"
-              :items="list"
+              :items="products"
               :search="search"
               :loading="loadings.products"
-              v-model="selectedPs"
               show-select
               return-object
             >
               <template v-slot:item="{ item }">
                 <tr
                   :style="{
-                    'background-color': selectedPs.includes(item)
-                      ? `${item.color}`
+                    'background-color': isSelected(item)
+                      ? item.color
                       : '',
                   }"
                 >
@@ -105,7 +182,7 @@
                   </td>
                   <td>{{ item.detail }}</td>
                   <td>{{ item.composition }}</td>
-                  <td>{{ formatAsArs(item.price as number) }}</td>
+                  <td>{{ formatAsArs(item.price) }}</td>
                 </tr>
               </template>
             </v-data-table-virtual>
@@ -113,7 +190,7 @@
         </v-card>
       </v-col>
 
-      <!-- Calculations column -->
+      <!-- Cálculo en escritorio -->
       <v-col cols="8" class="d-none d-md-flex">
         <v-card flat>
           <v-card-title class="d-flex items-center justify-space-between">
@@ -127,7 +204,7 @@
               @click="newCustomCalculation"
             >
               <v-tooltip activator="parent" location="bottom">
-                Cáculo personalizado
+                Cálculo personalizado
               </v-tooltip>
               <v-icon>mdi-cash-edit</v-icon>
             </v-btn>
@@ -146,7 +223,7 @@
       </v-col>
     </v-row>
 
-    <!-- Mobile calculation dialog -->
+    <!-- Cálculo en móvil -->
     <v-dialog
       v-model="dialogs.calculation"
       transition="dialog-bottom-transition"
@@ -159,7 +236,7 @@
           <v-spacer></v-spacer>
           <v-btn icon @click="newCustomCalculation">
             <v-tooltip activator="parent" location="bottom">
-              Cáculo personalizado
+              Cálculo personalizado
             </v-tooltip>
             <v-icon>mdi-cash-edit</v-icon>
           </v-btn>
@@ -170,114 +247,32 @@
       </v-card>
     </v-dialog>
 
-    <!-- Excel upload dialog  -->
+    <!-- Subida de Excel -->
     <ExcelForm :show="dialogs.excel" @finish="dialogs.excel = false" />
+
+    <!-- Diálogo de cálculo personalizado -->
+    <v-dialog
+      v-model="dialogs.customCalculation"
+      persistent
+      transition="dialog-bottom-transition"
+      max-width="900"
+    >
+      <v-card>
+        <v-toolbar>
+          <v-btn
+            icon="mdi-close"
+            @click="dialogs.customCalculation = false"
+          ></v-btn>
+          <v-toolbar-title>Depósito personalizado</v-toolbar-title>
+        </v-toolbar>
+        <v-card-text>
+          <CustomCalculation :total="total" :products="productsDetails" />
+        </v-card-text>
+      </v-card>
+    </v-dialog>
   </v-container>
-
-  <!-- Custom Calculation -->
-  <v-dialog
-    v-model="dialogs.customCalculation"
-    persistent
-    transition="dialog-bottom-transition"
-    max-width="900"
-  >
-    <v-card>
-      <v-toolbar>
-        <v-btn
-          icon="mdi-close"
-          @click="dialogs.customCalculation = false"
-        ></v-btn>
-        <v-toolbar-title>Depósito personalizado</v-toolbar-title>
-      </v-toolbar>
-      <v-card-text>
-        <CustomCalculation :total="total" :products="productsDetails" />
-      </v-card-text>
-    </v-card>
-  </v-dialog>
 </template>
-<script lang="ts" setup>
-import { useWindowSize } from "@vueuse/core";
 
-interface Loading {
-  products: boolean;
-  passwordForm: boolean;
-  excelForm: boolean;
-}
-
-interface Dialog {
-  calculation: boolean;
-  excel: boolean;
-  deposits: boolean;
-  customCalculation: boolean;
-}
-
-const { formatAsArs } = useFormatters();
-const search = ref<string>("");
-const loadings = reactive<Loading>({
-  products: false,
-  passwordForm: false,
-  excelForm: false,
-});
-const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
-
-const headers = ref<Object[]>([
-  {
-    align: "start",
-    key: "detail",
-    title: "Detalle",
-  },
-  {
-    align: "start",
-    key: "composition",
-    title: "Composición",
-  },
-  {
-    align: "start",
-    key: "price",
-    title: "Precio de lista",
-  },
-]);
-
-const dialogs = reactive<Dialog>({
-  calculation: false,
-  excel: false,
-  deposits: false,
-  customCalculation: false,
-});
-
-const total = ref<number>(0);
-const newCustomCalculation = () => {
-  total.value = 0;
-  for (const prod of selectedPs.value) {
-    total.value += prod.price as number;
-  }
-  dialogs.customCalculation = true;
-};
-
-const productsDetails = computed<string[]>(() =>
-  selectedPs.value.map((p: Product) => p.detail)
-);
-
-const { height: windowHeight } = useWindowSize();
-const dataTableHeight = computed(() => windowHeight.value - 196);
-
-const { list, selected: selectedPs } = useProducts("get");
-const isSelected = (i: Product) =>
-  selectedPs.value.some((item: Product) => item === i);
-
-const toggleSelect = (i: Product) => {
-  // Check if item is in array
-  if (isSelected(i)) {
-    const index = selectedPs.value.findIndex((sp: Product) => sp.$id === i.$id);
-    if (index !== -1) {
-      selectedPs.value.splice(index, 1);
-    }
-  } else selectedPs.value.push(i);
-};
-
-useDeposit();
-useQuote();
-</script>
 <style>
 .v-table__wrapper > table > thead > tr > th {
   font-weight: bolder !important;
