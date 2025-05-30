@@ -50,21 +50,24 @@ const headers = ref<Object[]>([
 const total = ref<number>(0);
 const newCustomCalculation = () => {
   total.value = selectedPs.value.reduce(
-    (sum, prod) => sum + (prod.price || 0),
+    (sum, prod) => sum + (prod?.price || 0),
     0
   );
   dialogs.customCalculation = true;
 };
 
 const productsDetails = computed<string[]>(() =>
-  selectedPs.value.map((p: Product) => p.detail)
+  selectedPs.value
+    .filter((p) => !!p?.detail)
+    .map((p: Product) => p.detail)
 );
 
 const isSelected = (i: Product) =>
-  selectedPs.value.some((item: Product) => item.$id === i.$id);
+  !!i?.$id && selectedPs.value.some((item: Product) => item?.$id === i.$id);
 
 const toggleSelect = (i: Product) => {
-  const index = selectedPs.value.findIndex((sp) => sp.$id === i.$id);
+  if (!i?.$id) return;
+  const index = selectedPs.value.findIndex((sp) => sp?.$id === i.$id);
   if (index !== -1) {
     selectedPs.value.splice(index, 1);
   } else {
@@ -169,7 +172,7 @@ useQuote();
                 <tr
                   :style="{
                     'background-color': isSelected(item)
-                      ? item.color
+                      ? item?.color || ''
                       : '',
                   }"
                 >
@@ -180,9 +183,9 @@ useQuote();
                       @update:model-value="toggleSelect(item)"
                     ></v-checkbox-btn>
                   </td>
-                  <td>{{ item.detail }}</td>
-                  <td>{{ item.composition }}</td>
-                  <td>{{ formatAsArs(item.price) }}</td>
+                  <td>{{ item?.detail }}</td>
+                  <td>{{ item?.composition }}</td>
+                  <td>{{ formatAsArs(item?.price) }}</td>
                 </tr>
               </template>
             </v-data-table-virtual>
