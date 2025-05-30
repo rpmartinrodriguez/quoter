@@ -32,16 +32,17 @@ export const useProducts = (init?: string) => {
       const res = await databases.listDocuments(
         config.public.database,
         config.public.cProducts,
-        [Query.limit(500)]
+        [Query.limit(500)] // ✅ Aumentamos límite a 500
       );
 
       if (res.total > 0) {
         const parsed = parseProducts(res.documents);
         products.value = parsed;
-        selected.value = parsed; // ✅ Esta línea asegura que los productos se muestren
+        // ✅ No seleccionamos automáticamente
+        // El usuario lo hace manualmente desde la interfaz
       } else {
         products.value = [];
-        selected.value = []; // Limpiar si no hay productos
+        selected.value = [];
       }
     } catch (error) {
       console.log("error on get products", error);
