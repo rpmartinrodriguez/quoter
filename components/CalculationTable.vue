@@ -17,22 +17,24 @@ const { products, selected, getProducts } = useProducts();
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
 
-// 🟢 Carga inicial de productos y sincronización
+// ✅ Protección: chequear que `selected` existe y es array
+const isSelectedValid = computed(() => Array.isArray(selected?.value) && selected.value.length > 0);
+
+// 🟢 Carga inicial protegida
 onMounted(async () => {
   await getProducts();
   console.log("🧪 Productos cargados desde Appwrite:", products.value);
 
-  if (Array.isArray(products.value) && products.value.length > 0) {
-    selected.value = [...products.value];
+  if (isSelectedValid.value) {
     console.log("🧩 Productos seleccionados:", selected.value);
   } else {
-    console.warn("⚠️ No hay productos disponibles.");
+    console.warn("⚠️ No hay productos seleccionados aún.");
   }
 });
 
-// 🟢 Armado de los productos con cálculos (protegido)
+// 🟢 Construcción segura de parsedProducts
 watchEffect(() => {
-  if (!Array.isArray(selected.value) || selected.value.length === 0) {
+  if (!isSelectedValid.value) {
     console.log("📭 Esperando selección de productos...");
     parsedProducts.value = [];
     return;
@@ -43,7 +45,7 @@ watchEffect(() => {
     .map((element) => {
       const price = element.price || 0;
       return {
-        color: element.color || "#CCC",
+        color: element.color || "#EEE",
         product: `
           <div class="text-center"><b>${element.detail || "Producto"}</b></div>
           <div class="text-center my-3">${formatAsArs(price)}</div>`,
@@ -56,13 +58,13 @@ watchEffect(() => {
   console.log("✅ parsedProducts actualizado:", parsedProducts.value);
 });
 
-// 🔢 Funciones de cálculo
+// 🔢 Funciones auxiliares
 const fillDepositCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(element => {
-    const amount = (p * element.percentage) / 100;
+  deposits.value.forEach(({ percentage }) => {
+    const amount = (p * percentage) / 100;
     html += `<tr>
-      <td class="px-1 text-center cell">${element.percentage}%</td>
+      <td class="px-1 text-center cell">${percentage}%</td>
       <td class="px-1 text-center cell"><b>${formatAsArs(amount)}</b></td>
     </tr>`;
   });
@@ -72,8 +74,8 @@ const fillDepositCell = (p: number) => {
 
 const fillRestCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(element => {
-    const amount = (p * element.percentage) / 100;
+  deposits.value.forEach(({ percentage }) => {
+    const amount = (p * percentage) / 100;
     html += `<tr>
       <td class="px-1 text-right cell"><b>${formatAsArs(p - amount)}</b></td>
     </tr>`;
@@ -83,12 +85,11 @@ const fillRestCell = (p: number) => {
 };
 
 const calculateQuotes = (p: number): string[] => {
-  return quotes.value.map(q => {
+  return quotes.value.map((q) => {
     let html = `<table class="table"><tbody>`;
-    deposits.value.forEach(d => {
+    deposits.value.forEach((d) => {
       const amount = (p * d.percentage) / 100;
-      const diff = p - amount;
-      const quote = (diff * q.percentage) / 100;
+      const quote = ((p - amount) * q.percentage) / 100;
       html += `<tr>
         <td class="px-1 text-center cell">${formatAsArs(Math.round(quote))}</td>
       </tr>`;
@@ -98,17 +99,19 @@ const calculateQuotes = (p: number): string[] => {
   });
 };
 
-// 🔢 Totales
-const totals = computed(() =>
-  selected.value.reduce((t, p) => t + (p.price || 0), 0)
-);
+// 🔢 Totales protegidos
+const totals = computed(() => {
+  if (!isSelectedValid.value) return 0;
+  return selected.value.reduce((t, p) => t + (p.price || 0), 0);
+});
 
 const totalDeposits = computed(() => {
   let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(element => {
+  deposits.value.forEach(({ percentage }) => {
+    const amount = (totals.value * percentage) / 100;
     html += `<tr>
-      <td class="px-1 text-center cell">${element.percentage}%</td>
-      <td class="px-1 text-center cell"><b>${formatAsArs(Math.round((totals.value * element.percentage) / 100))}</b></td>
+      <td class="px-1 text-center cell">${percentage}%</td>
+      <td class="px-1 text-center cell"><b>${formatAsArs(Math.round(amount))}</b></td>
     </tr>`;
   });
   html += `</tbody></table>`;
@@ -117,8 +120,8 @@ const totalDeposits = computed(() => {
 
 const totalRests = computed(() => {
   let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(element => {
-    const amount = (totals.value * element.percentage) / 100;
+  deposits.value.forEach(({ percentage }) => {
+    const amount = (totals.value * percentage) / 100;
     const rest = totals.value - amount;
     html += `<tr>
       <td class="px-1 text-right cell"><b>${formatAsArs(Math.round(rest))}</b></td>
@@ -129,12 +132,11 @@ const totalRests = computed(() => {
 });
 
 const totalQuotes = computed(() => {
-  return quotes.value.map(q => {
+  return quotes.value.map((q) => {
     let html = `<table class="table"><tbody>`;
-    deposits.value.forEach(d => {
+    deposits.value.forEach((d) => {
       const amount = (totals.value * d.percentage) / 100;
-      const diff = totals.value - amount;
-      const quote = (diff * q.percentage) / 100;
+      const quote = ((totals.value - amount) * q.percentage) / 100;
       html += `<tr>
         <td class="px-1 text-center cell cursor-pointer can-copy" data-percentage="${d.percentage}" data-quotes="${q.quantity}">
           ${formatAsArs(Math.round(quote))}
@@ -146,12 +148,13 @@ const totalQuotes = computed(() => {
   });
 });
 
-// 🧾 Copiar resumen
+// 📋 Copiado de resumen
 const source = ref("");
 const { copy } = useClipboard({ source });
 
 const test = (event: any) => {
   const elem = event.target;
+  if (!isSelectedValid.value) return;
   const productsList = selected.value.map((s) => s.detail);
   if (elem.classList.contains("can-copy")) {
     source.value = `Hola!!
