@@ -7,88 +7,76 @@ import { Client, Databases, ID, Query } from "node-appwrite";
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
 
-  // Create Client Appwrote instance
-  const client = new Client();
-  client
+  // Cliente Appwrite
+  const client = new Client()
     .setEndpoint(config.public.endpoint)
     .setProject(config.public.project)
     .setKey(config.public.projectApiKey);
 
   const databases = new Databases(client);
 
-  // Get the file from request
+  // Obtener archivo del formulario
   const filesBody = await readMultipartFormData(event);
-
-  // Return an error if any file is comming
-  if (!filesBody) {
+  if (!filesBody || filesBody.length === 0) {
     throw createError({
-      statusCode: 404,
-      statusMessage: "File not found",
+      statusCode: 400,
+      statusMessage: "❌ No se recibió ningún archivo.",
     });
   }
 
-  // Define directory to store the file temporarily.
-  const isDev = process.env.NODE_ENV !== 'production';
-const fileBody = filesBody[0];
+  const fileBody = filesBody[0];
+  const isDev = process.env.NODE_ENV !== "production";
 
-if (isDev) {
-  const dir = "./uploads";
-  if (!existsSync(dir)) mkdirSync(dir);
-  await writeFile(`${dir}/${fileBody.filename}`, fileBody.data);
-} else {
-  console.log("ℹ️ Producción: se procesó archivo en memoria sin escribir en disco.");
-}
+  if (isDev) {
+    const dir = "./uploads";
+    if (!existsSync(dir)) mkdirSync(dir);
+    await writeFile(`${dir}/${fileBody.filename}`, fileBody.data);
+  } else {
+    console.log("ℹ️ Producción: procesando archivo en memoria.");
+  }
 
-  // Read the xlsx file
   try {
-    const rows: any = await readXlsxFile(fileBody.data);
+    const rows: any[][] = await readXlsxFile(fileBody.data);
+
+    // Validación mínima
+    if (!rows || rows.length <= 1) {
+      throw createError({
+        statusCode: 422,
+        statusMessage: "❌ El archivo no contiene productos válidos.",
+      });
+    }
+
     const products: Product[] = [];
 
-    for (let i = 1; i < rows.length && i <= 10; i++) {
-  const product: Product = {
-    detail: rows[i][0],
-    composition: rows[i][1],
-    price: rows[i][2],
-  };
-  products.push(product);
-}
+    for (let i = 1; i < rows.length; i++) {
+      const [detail, composition, price] = rows[i];
 
-    // Delete all records from DB.
-    // 1- First query all the products in database.
-    const productsInDb = await databases.listDocuments(
+      if (!detail || !composition || isNaN(price)) continue;
+
+      products.push({
+        detail: detail.toString(),
+        composition: composition.toString(),
+        price: Number(price),
+      });
+    }
+
+    // Limpiar base de datos
+    const existing = await databases.listDocuments(
       config.public.database,
       config.public.cProducts,
       [Query.limit(500)]
     );
-    // 2- Delete all products
-    for (const product of productsInDb.documents) {
+
+    for (const doc of existing.documents) {
       await databases.deleteDocument(
         config.public.database,
         config.public.cProducts,
-        product.$id
+        doc.$id
       );
     }
-    /* const deletePromises = productsInDb.documents.map((pidb) => {
-      return databases.deleteDocument(
-        config.public.database,
-        config.public.cProducts,
-        pidb.$id
-      );
-    });
 
-    await Promise.all(deletePromises); */
-    // 3- insert new products
-    /* const createPromises = products.map((p) => {
-      return databases.createDocument(
-        config.public.database,
-        config.public.cProducts,
-        ID.unique(),
-        p
-      );
-    });
-    await Promise.all(createPromises); */
+    // Insertar nuevos productos
     for (const product of products) {
-      // 2- Create new product in DB
       await databases.createDocument(
         config.public.database,
         config.public.cProducts,
@@ -97,34 +85,24 @@ if (isDev) {
       );
     }
 
-    // Delete files in uploads directory
+    // Limpieza de archivos locales en desarrollo
     if (isDev) {
-  readdir('./uploads', (err, files) => {
-    if (err) {
-      console.log("⚠️ Error al leer carpeta uploads:", err);
-      return;
-    }
-
-    for (const file of files) {
-      unlink(path.join('./uploads', file), (err) => {
-        if (err) {
-          console.log("⚠️ Error al borrar archivo:", err);
+      readdir("./uploads", (err, files) => {
+        if (err) return console.error("🛑 Error al leer /uploads:", err);
+        for (const f of files) {
+          unlink(path.join("./uploads", f), (err) => {
+            if (err) console.error("🛑 Error al borrar archivo:", err);
+          });
         }
       });
     }
-  });
-} else {
-  console.log("ℹ️ Producción: no se eliminan archivos de disco.");
-}
 
-    return {
-      success: true,
-    };
-  } catch (error) {
-    console.log(error);
+    return { success: true };
+  } catch (error: any) {
+    console.error("🛑 Error al procesar Excel:", error);
     throw createError({
       statusCode: 500,
-      statusMessage: "Error in loop",
+      statusMessage: error?.message || "Error interno",
     });
   }
 });
