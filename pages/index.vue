@@ -31,25 +31,24 @@ const dialogs = reactive<Dialog>({
 const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
-// ✅ Cargamos productos y manejamos selección manual
+// 🟢 Obtenemos productos y estado global
 const { list: products, selected } = useProducts("get");
 const selectedPs = ref<Product[]>([]);
 
-// 🔄 Sincronizar con estado global (con protección)
-watch(
-  selectedPs,
-  (newVal) => {
-    if (selected?.value) {
-      selected.value = [...newVal];
-    } else {
-      console.warn("⚠️ selected no está disponible aún.");
-    }
-  },
-  { immediate: true }
-);
+// 🔄 Sincronizamos selectedPs con selected global (y viceversa al cargar)
+onMounted(() => {
+  if (Array.isArray(selected.value)) {
+    selectedPs.value = [...selected.value];
+  }
+});
+watch(selectedPs, (newVal) => {
+  if (Array.isArray(selected.value)) {
+    selected.value = [...newVal];
+  }
+});
 
-const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
-const headers = ref<Object[]>([
+const noneSelected = computed(() => selectedPs.value.length === 0);
+const headers = ref([
   { align: "start", key: "detail", title: "Detalle" },
   { align: "start", key: "composition", title: "Composición" },
   { align: "start", key: "price", title: "Precio de lista" },
@@ -64,12 +63,12 @@ const newCustomCalculation = () => {
   dialogs.customCalculation = true;
 };
 
-const productsDetails = computed<string[]>(() =>
-  selectedPs.value.map((p: Product) => p.detail)
+const productsDetails = computed(() =>
+  selectedPs.value.map((p) => p.detail)
 );
 
 const isSelected = (i: Product) =>
-  selectedPs.value.some((item: Product) => item.$id === i.$id);
+  selectedPs.value.some((item) => item.$id === i.$id);
 
 const toggleSelect = (i: Product) => {
   const index = selectedPs.value.findIndex((sp) => sp.$id === i.$id);
