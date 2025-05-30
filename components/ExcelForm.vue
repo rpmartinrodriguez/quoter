@@ -2,28 +2,24 @@
   <v-dialog v-model="props.show" persistent max-width="500">
     <v-card>
       <v-toolbar>
-        <v-btn icon="mdi-close" @click="closeExcelDialog"></v-btn>
+        <v-btn icon="mdi-close" @click="closeExcelDialog" />
         <v-toolbar-title>Importar Excel</v-toolbar-title>
       </v-toolbar>
       <v-card-text>
-        <!-- Forms -->
-
-        <!-- Admin Password Form -->
         <div class="py-3">
+          <!-- Formulario de contraseña -->
           <form v-if="form.password">
             <v-text-field
               label="Ingrese contraseña de administrador"
               variant="outlined"
               density="compact"
-              autocomplete="“current-password”"
+              autocomplete="current-password"
               v-model="password"
               :type="type"
               :append-inner-icon="icon"
               :disabled="loadings.password"
               @click:append-inner="handleIconClick"
-            ></v-text-field>
-
-            <!-- Submit Button -->
+            />
             <v-btn
               variant="tonal"
               color="info"
@@ -35,15 +31,16 @@
             </v-btn>
           </form>
 
+          <!-- Formulario de carga de Excel -->
           <form v-else>
             <v-file-input
               clearable
-              label="Escoger excel"
+              label="Escoger Excel"
               variant="outlined"
               density="compact"
               @change="handleFileChange"
               @click:clear="files = null"
-            ></v-file-input>
+            />
             <v-btn
               variant="tonal"
               color="info"
@@ -56,14 +53,12 @@
           </form>
         </div>
 
-        <!-- Error Status Messages -->
-        <div class="py-5" v-if="errorMessage.length > 0">
+        <!-- Mensajes -->
+        <div class="py-5" v-if="errorMessage">
           <v-alert type="warning" variant="outlined" class="text-center">
             {{ errorMessage }}
           </v-alert>
         </div>
-
-        <!-- File upload success -->
         <div class="py-5" v-if="success">
           <v-alert type="success" variant="outlined" class="text-center">
             Excel cargado exitosamente!
@@ -73,65 +68,61 @@
     </v-card>
   </v-dialog>
 </template>
+
 <script lang="ts" setup>
 interface Sources {
   password: boolean;
   excel: boolean;
 }
-const props = defineProps<{
-  show: boolean;
-}>();
+
+const props = defineProps<{ show: boolean }>();
 const emits = defineEmits(["finish", "reload"]);
 
-const loadings = reactive<Sources>({
-  password: false,
-  excel: false,
-});
-const form = reactive<Sources>({
-  password: true,
-  excel: false,
-});
+const loadings = reactive<Sources>({ password: false, excel: false });
+const form = reactive<Sources>({ password: true, excel: false });
 
-const errorMessage = ref<string>("");
-const password = ref<string>("");
-const type = ref<string>("password");
-const icon = computed<string>(() =>
-  type.value === "password" ? "mdi-eye-off" : "mdi-eye"
-);
+const errorMessage = ref("");
+const password = ref("");
+const type = ref<"password" | "text">("password");
+const icon = computed(() => (type.value === "password" ? "mdi-eye-off" : "mdi-eye"));
+const handleIconClick = () => (type.value = type.value === "password" ? "text" : "password");
 
-const handleIconClick = () =>
-  (type.value = type.value === "password" ? "text" : "password");
+const files = ref<FileList | null>(null);
+const noFile = computed(() => !files.value);
+const success = ref(false);
 
 const { checkPassword } = useActionPasswords();
+const { getProducts } = useProducts();
+
+// ✅ Validación de contraseña
 const handleSubmit = async () => {
   loadings.password = true;
   errorMessage.value = "";
 
   const res = await checkPassword("uploads", password.value);
+  loadings.password = false;
 
   if (res === 404) {
     errorMessage.value = "Contraseña incorrecta";
-  } else form.password = false;
-  loadings.password = false;
+  } else {
+    form.password = false;
+  }
 };
 
-const files = ref<FileList | null>(null);
-const noFile = computed<boolean>(() => !files.value);
-const success = ref<boolean>(false);
-
+// ✅ Manejo del input de archivo
 const handleFileChange = (e: Event) => {
   files.value = (e.target as HTMLInputElement).files;
 };
 
+// ✅ Subida del Excel y cierre del diálogo
 const saveXls = async () => {
-  loadings.excel = true;
-  const fd = new FormData();
+  if (!files.value || files.value.length === 0) return;
 
-  if (files.value) {
-    Array.from(files.value).forEach((file) => {
-      fd.append("file", file);
-    });
-  }
+  loadings.excel = true;
+  errorMessage.value = "";
+
+  const fd = new FormData();
+  Array.from(files.value).forEach((file) => fd.append("file", file));
 
   try {
     const res = await $fetch("/api/update-products", {
@@ -139,46 +130,44 @@ const saveXls = async () => {
       body: fd,
     });
 
-    if (res && res.success) {
+    if (res?.success) {
       success.value = true;
-      errorMessage.value = "";
-      getProducts(); // 🔄 refrescamos productos
+      await getProducts(); // 🔄 actualiza productos
 
-      // ✅ Cerramos modal y recargamos tabla
       setTimeout(() => {
         emits("reload");
         emits("finish");
-      }, 1500); // da tiempo a mostrar el mensaje
+        resetForm();
+      }, 1500);
     } else {
-      console.warn("⚠️ Respuesta inesperada del backend:", res);
       errorMessage.value = "⚠️ El servidor respondió sin éxito.";
     }
-
-    files.value = null;
   } catch (error: any) {
     console.error("🛑 Error real del backend:", error);
-    errorMessage.value = `❌ Error inesperado: ${error.statusMessage || error.message || 'Sin mensaje.'}`;
+    errorMessage.value = `❌ Error inesperado: ${error?.statusMessage || error?.message || 'Sin mensaje'}`;
+  } finally {
+    loadings.excel = false;
+    files.value = null;
   }
-
-  loadings.excel = false;
 };
 
-const { getProducts } = useProducts();
+// ✅ Cierre manual del modal
 const closeExcelDialog = () => {
   if (loadings.password || loadings.excel) return;
+  emits("finish");
+  resetForm();
+};
 
+// ✅ Limpieza completa
+const resetForm = () => {
   loadings.password = false;
   loadings.excel = false;
   form.password = true;
   form.excel = false;
-  errorMessage.value = "";
   password.value = "";
   type.value = "password";
   files.value = null;
-  if (success.value) {
-    emits("reload");
-  }
   success.value = false;
-  emits("finish");
+  errorMessage.value = "";
 };
 </script>
