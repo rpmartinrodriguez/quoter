@@ -31,14 +31,20 @@ const dialogs = reactive<Dialog>({
 const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
-// ✅ Cargamos productos y manejamos selección manual
+// ✅ Productos y selección sincronizada
 const { list: products, selected } = useProducts("get");
 const selectedPs = ref<Product[]>([]);
 
-// 🔄 Sincronizar con estado global
-watch(selectedPs, (newVal) => {
-  selected.value = [...newVal];
-});
+// ✅ Proteger acceso a refs en watch
+watch(
+  selectedPs,
+  (newVal) => {
+    if (selected && selected.value !== undefined) {
+      selected.value = [...newVal];
+    }
+  },
+  { immediate: true }
+);
 
 const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
 const headers = ref<Object[]>([
@@ -50,20 +56,27 @@ const headers = ref<Object[]>([
 const total = ref<number>(0);
 const newCustomCalculation = () => {
   total.value = selectedPs.value.reduce(
-    (sum, prod) => sum + (prod.price || 0),
+    (sum, prod) => sum + (prod?.price || 0),
     0
   );
   dialogs.customCalculation = true;
 };
 
 const productsDetails = computed<string[]>(() =>
-  selectedPs.value.map((p: Product) => p.detail)
+  selectedPs.value.map((p) => p.detail)
 );
 
-const isSelected = (i: Product) =>
-  selectedPs.value.some((item: Product) => item.$id === i.$id);
+// ✅ Función segura para checkboxes
+const isSelected = (i: Product) => {
+  return (
+    Array.isArray(selectedPs.value) &&
+    selectedPs.value.some((item) => item.$id === i.$id)
+  );
+};
 
 const toggleSelect = (i: Product) => {
+  if (!selectedPs.value) return;
+
   const index = selectedPs.value.findIndex((sp) => sp.$id === i.$id);
   if (index !== -1) {
     selectedPs.value.splice(index, 1);
@@ -75,214 +88,3 @@ const toggleSelect = (i: Product) => {
 useDeposit();
 useQuote();
 </script>
-
-<template>
-  <v-container fluid>
-    <v-row>
-      <v-col cols="12" md="4">
-        <v-card flat>
-          <template v-slot:title>
-            <ClientOnly>
-              <div class="d-flex align-center w-100">
-                <div class="w-100 px-1">Artículos</div>
-                <div class="d-flex align-center">
-                  <v-btn
-                    v-if="noneSelected"
-                    class="px-2"
-                    variant="text"
-                    density="compact"
-                    icon
-                    @click="dialogs.excel = true"
-                  >
-                    <v-tooltip activator="parent" location="bottom">
-                      Cargar Excel
-                    </v-tooltip>
-                    <v-icon>mdi-file-excel</v-icon>
-                  </v-btn>
-                  <template v-else>
-                    <v-btn
-                      class="px-2 d-flex d-md-none"
-                      variant="text"
-                      density="compact"
-                      icon
-                      @click="dialogs.calculation = true"
-                    >
-                      <v-tooltip activator="parent" location="bottom">
-                        Calcular
-                      </v-tooltip>
-                      <v-icon>mdi-calculator-variant</v-icon>
-                    </v-btn>
-                    <v-btn
-                      class="px-2"
-                      variant="text"
-                      density="compact"
-                      icon
-                      @click="selectedPs = []"
-                    >
-                      <v-tooltip activator="parent" location="bottom">
-                        Reiniciar selección
-                      </v-tooltip>
-                      <v-icon>mdi-checkbox-multiple-blank-outline</v-icon>
-                    </v-btn>
-                  </template>
-                  <v-btn
-                    class="px-2"
-                    variant="text"
-                    density="compact"
-                    icon
-                    to="/settings"
-                  >
-                    <v-tooltip activator="parent" location="bottom">
-                      Configurar calculadora
-                    </v-tooltip>
-                    <v-icon>mdi-cog</v-icon>
-                  </v-btn>
-                </div>
-              </div>
-            </ClientOnly>
-          </template>
-
-          <template v-slot:text>
-            <v-text-field
-              v-model="search"
-              label="Search"
-              prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="compact"
-              hide-details
-              single-line
-            ></v-text-field>
-          </template>
-
-          <!-- Tabla de productos -->
-          <v-card-text>
-            <v-data-table-virtual
-              :height="dataTableHeight"
-              :headers="headers"
-              :items="products"
-              :search="search"
-              :loading="loadings.products"
-              show-select
-              return-object
-            >
-              <template v-slot:item="{ item }">
-                <tr
-                  :style="{
-                    'background-color': isSelected(item)
-                      ? item.color
-                      : '',
-                  }"
-                >
-                  <td class="check-cell">
-                    <v-checkbox-btn
-                      :model-value="isSelected(item)"
-                      color="primary"
-                      @update:model-value="toggleSelect(item)"
-                    ></v-checkbox-btn>
-                  </td>
-                  <td>{{ item.detail }}</td>
-                  <td>{{ item.composition }}</td>
-                  <td>{{ formatAsArs(item.price) }}</td>
-                </tr>
-              </template>
-            </v-data-table-virtual>
-          </v-card-text>
-        </v-card>
-      </v-col>
-
-      <!-- Cálculo en escritorio -->
-      <v-col cols="8" class="d-none d-md-flex">
-        <v-card flat>
-          <v-card-title class="d-flex items-center justify-space-between">
-            <span> Cálculos </span>
-            <v-btn
-              v-if="!noneSelected"
-              class="px-2"
-              variant="text"
-              density="compact"
-              icon
-              @click="newCustomCalculation"
-            >
-              <v-tooltip activator="parent" location="bottom">
-                Cálculo personalizado
-              </v-tooltip>
-              <v-icon>mdi-cash-edit</v-icon>
-            </v-btn>
-          </v-card-title>
-          <v-card-text>
-            <div v-if="noneSelected">
-              <p class="text-center">
-                Escoja uno o varios productos para cotizar
-              </p>
-            </div>
-            <div v-else>
-              <CalculationTable />
-            </div>
-          </v-card-text>
-        </v-card>
-      </v-col>
-    </v-row>
-
-    <!-- Cálculo en móvil -->
-    <v-dialog
-      v-model="dialogs.calculation"
-      transition="dialog-bottom-transition"
-      fullscreen
-    >
-      <v-card>
-        <v-toolbar>
-          <v-btn icon="mdi-close" @click="dialogs.calculation = false"></v-btn>
-          <v-toolbar-title style="flex: none">Cálculos</v-toolbar-title>
-          <v-spacer></v-spacer>
-          <v-btn icon @click="newCustomCalculation">
-            <v-tooltip activator="parent" location="bottom">
-              Cálculo personalizado
-            </v-tooltip>
-            <v-icon>mdi-cash-edit</v-icon>
-          </v-btn>
-        </v-toolbar>
-        <v-card-text>
-          <CalculationTable />
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-
-    <!-- Subida de Excel -->
-    <ExcelForm :show="dialogs.excel" @finish="dialogs.excel = false" />
-
-    <!-- Diálogo de cálculo personalizado -->
-    <v-dialog
-      v-model="dialogs.customCalculation"
-      persistent
-      transition="dialog-bottom-transition"
-      max-width="900"
-    >
-      <v-card>
-        <v-toolbar>
-          <v-btn
-            icon="mdi-close"
-            @click="dialogs.customCalculation = false"
-          ></v-btn>
-          <v-toolbar-title>Depósito personalizado</v-toolbar-title>
-        </v-toolbar>
-        <v-card-text>
-          <CustomCalculation :total="total" :products="productsDetails" />
-        </v-card-text>
-      </v-card>
-    </v-dialog>
-  </v-container>
-</template>
-
-<style>
-.v-table__wrapper > table > thead > tr > th {
-  font-weight: bolder !important;
-}
-
-.border-top-bold {
-  border-top: 5px solid #000 !important;
-}
-
-.check-cell .v-selection-control__input {
-  justify-content: start !important;
-}
-</style>
