@@ -10,6 +10,7 @@
         hide-details
       >
       </v-text-field>
+
       <!-- Percentage text field -->
       <v-text-field
         :label="pLabel"
@@ -20,7 +21,7 @@
       >
       </v-text-field>
 
-      <!-- Create deposit -->
+      <!-- Create/Update Quote -->
       <v-btn
         class="px-2"
         variant="tonal"
@@ -34,7 +35,7 @@
         <v-icon>mdi-check</v-icon>
       </v-btn>
 
-      <!-- Delete deposit -->
+      <!-- Delete Quote -->
       <v-btn
         v-if="state"
         class="px-2"
@@ -46,7 +47,7 @@
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
-      <!-- Clear deposit field -->
+      <!-- Clear Form -->
       <v-btn
         v-if="showClear"
         class="px-2"
@@ -62,6 +63,7 @@
     </div>
   </form>
 </template>
+
 <script lang="ts" setup>
 interface IDepositForm {
   qLabel?: string;
@@ -73,40 +75,52 @@ interface IDepositForm {
 const { qLabel, pLabel, state, showClear } = defineProps<IDepositForm>();
 
 const { createQuote, updateQuote, deleteQuote } = useQuote();
-const quantity = ref<string | null>();
-const percentage = ref<string | null>();
-const invalidQuote = computed<boolean>(
-  () =>
-    !quantity.value ||
-    isNaN(parseInt(quantity.value)) ||
-    !isFinite(parseInt(quantity.value)) ||
-    !percentage.value ||
-    isNaN(parseInt(percentage.value)) ||
-    !isFinite(parseInt(percentage.value))
-);
+
+// ✅ Refs inicializados como string vacía para evitar problemas de `null`
+const quantity = ref<string>("");
+const percentage = ref<string>("");
+
+// ✅ Validación sólida con parseFloat y control de NaN
+const invalidQuote = computed<boolean>(() => {
+  const q = parseFloat(quantity.value);
+  const p = parseFloat(percentage.value);
+  return (
+    isNaN(q) ||
+    !isFinite(q) ||
+    q <= 0 ||
+    isNaN(p) ||
+    !isFinite(p) ||
+    p <= 0
+  );
+});
+
 const saveTooltip = computed<string>(() => (state ? "Actualizar" : "Guardar"));
 
 const handleSaveClick = async () => {
-  if (!quantity.value) return;
+  const q = quantity.value?.trim();
+  const p = percentage.value?.trim();
+
+  if (!q || !p || invalidQuote.value) return;
 
   if (state) {
-    await updateQuote(state.$id!, quantity.value!, percentage.value!);
+    await updateQuote(state.$id!, q, p);
   } else {
-    await createQuote(quantity.value, percentage.value!);
-    quantity.value = null;
-    percentage.value = null;
+    await createQuote(q, p);
+    quantity.value = "";
+    percentage.value = "";
   }
 };
 
 const clearForm = () => {
-  quantity.value = null;
-  percentage.value = null;
+  quantity.value = "";
+  percentage.value = "";
 };
 
+// ✅ Precarga de valores cuando se pasa un `state` externo
 onMounted(() => {
   if (state) {
-    quantity.value = state.quantity.toString();
-    percentage.value = state.percentage.toString();
+    quantity.value = String(state.quantity || "");
+    percentage.value = String(state.percentage || "");
   }
 });
 </script>
