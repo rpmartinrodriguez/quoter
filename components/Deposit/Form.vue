@@ -11,7 +11,7 @@
       >
       </v-text-field>
 
-      <!-- Create deposit -->
+      <!-- Create/Update deposit -->
       <v-btn
         class="px-2"
         variant="tonal"
@@ -43,7 +43,7 @@
         class="px-2"
         variant="tonal"
         color="info"
-        @click="deposit = null"
+        @click="clearDeposit"
       >
         <v-tooltip activator="parent" location="bottom">
           Limpiar campo
@@ -53,6 +53,7 @@
     </div>
   </form>
 </template>
+
 <script lang="ts" setup>
 interface IDepositForm {
   label?: string;
@@ -63,24 +64,40 @@ interface IDepositForm {
 const { label, state, showClear } = defineProps<IDepositForm>();
 
 const { createDeposit, updateDeposit, deleteDeposit } = useDeposit();
-const deposit = ref<number | null>();
-const invalidDeposit = computed<boolean>(
-  () => !deposit.value || isNaN(deposit.value) || !isFinite(deposit.value)
-);
+
+// ✅ Inicialización segura
+const deposit = ref<number>(0);
+
+// ✅ Validación robusta
+const invalidDeposit = computed<boolean>(() => {
+  const d = deposit.value;
+  return isNaN(d) || !isFinite(d) || d <= 0;
+});
+
 const saveTooltip = computed<string>(() => (state ? "Actualizar" : "Guardar"));
 
+// ✅ Guardado seguro
 const handleSaveClick = async () => {
-  if (!deposit.value) return;
+  const value = deposit.value;
+  if (invalidDeposit.value) return;
 
   if (state) {
-    await updateDeposit(state.$id!, deposit.value);
+    await updateDeposit(state.$id!, value);
   } else {
-    await createDeposit(deposit.value);
-    deposit.value = null;
+    await createDeposit(value);
+    deposit.value = 0;
   }
 };
 
+// ✅ Limpiar valor
+const clearDeposit = () => {
+  deposit.value = 0;
+};
+
+// ✅ Precarga al montar
 onMounted(() => {
-  if (state) deposit.value = state.percentage;
+  if (state && typeof state.percentage === "number") {
+    deposit.value = state.percentage;
+  }
 });
 </script>
