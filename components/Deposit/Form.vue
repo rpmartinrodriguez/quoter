@@ -8,8 +8,7 @@
         variant="outlined"
         density="compact"
         hide-details
-      >
-      </v-text-field>
+      ></v-text-field>
 
       <!-- Create/Update deposit -->
       <v-btn
@@ -55,6 +54,12 @@
 </template>
 
 <script lang="ts" setup>
+// ✅ (solo si no está definido globalmente)
+interface Deposit {
+  $id: string;
+  percentage: number;
+}
+
 interface IDepositForm {
   label?: string;
   state?: Deposit;
@@ -69,12 +74,12 @@ const { createDeposit, updateDeposit, deleteDeposit } = useDeposit();
 const deposit = ref<number>(0);
 
 // ✅ Validación robusta
-const invalidDeposit = computed<boolean>(() => {
+const invalidDeposit = computed(() => {
   const d = deposit.value;
   return isNaN(d) || !isFinite(d) || d <= 0;
 });
 
-const saveTooltip = computed<string>(() => (state ? "Actualizar" : "Guardar"));
+const saveTooltip = computed(() => (state ? "Actualizar" : "Guardar"));
 
 // ✅ Guardado seguro
 const handleSaveClick = async () => {
@@ -98,6 +103,8 @@ const clearDeposit = () => {
 onMounted(() => {
   if (state && typeof state.percentage === "number") {
     deposit.value = state.percentage;
+  } else {
+    deposit.value = 0;
   }
 });
 </script>
