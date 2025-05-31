@@ -1,45 +1,37 @@
 import { ID, Query } from "appwrite";
 
-const deposits = ref<Deposit[]>([]);
-
 export const useDeposit = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
   const { parseDeposits } = useParse();
 
+  const deposits = ref<Deposit[]>([]);
+
   const createDeposit = async (d: number) => {
     try {
-      const data = {
-        percentage: parseInt(d.toString()),
-      };
       await databases.createDocument(
         config.public.database,
         config.public.cDeposits,
         ID.unique(),
-        data
+        { percentage: Math.round(d) }
       );
-
       await getDeposits();
     } catch (error) {
-      console.log("error on create deposit", error);
+      console.log("❌ error al crear depósito", error);
     }
   };
 
   const updateDeposit = async (id: string, d: number) => {
     try {
-      const data = {
-        percentage: parseInt(d.toString()),
-      };
       await databases.updateDocument(
         config.public.database,
         config.public.cDeposits,
-        id as string,
-        data
+        id,
+        { percentage: Math.round(d) }
       );
-
       await getDeposits();
     } catch (error) {
-      console.log("error on create deposit", error);
+      console.log("❌ error al actualizar depósito", error);
     }
   };
 
@@ -48,30 +40,28 @@ export const useDeposit = () => {
       await databases.deleteDocument(
         config.public.database,
         config.public.cDeposits,
-        id as string
+        id
       );
-
       await getDeposits();
     } catch (error) {
-      console.log("error on create deposit", error);
+      console.log("❌ error al borrar depósito", error);
     }
   };
 
   const getDeposits = async () => {
     try {
-      const promise = await databases.listDocuments(
+      const res = await databases.listDocuments(
         config.public.database,
         config.public.cDeposits,
         [Query.orderDesc("percentage")]
       );
-
-      if (promise.total > 0) deposits.value = parseDeposits(promise.documents);
+      deposits.value = res.total > 0 ? parseDeposits(res.documents) : [];
     } catch (error) {
-      console.log("error on get deposits", error);
+      console.log("❌ error al obtener depósitos", error);
     }
   };
 
-  // Query deposits if they ar enot in the state already
+  // Inicializa solo si está vacío
   if (deposits.value.length === 0) getDeposits();
 
   return {
