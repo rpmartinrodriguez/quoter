@@ -23,7 +23,7 @@ export const useProducts = (init?: string) => {
 
       await Promise.all(promises);
     } catch (error) {
-      console.log("error on create products", error);
+      console.error("❌ Error al crear productos:", error);
     }
   };
 
@@ -32,23 +32,24 @@ export const useProducts = (init?: string) => {
       const res = await databases.listDocuments(
         config.public.database,
         config.public.cProducts,
-        [Query.limit(500)] // ✅ Aumentamos límite a 500
+        [Query.limit(500)]
       );
 
-      if (res.total > 0) {
+      if (Array.isArray(res.documents) && res.documents.length > 0) {
         const parsed = parseProducts(res.documents);
-        products.value = parsed;
-        // ✅ No seleccionamos automáticamente
-        // El usuario lo hace manualmente desde la interfaz
+        products.value = parsed ?? [];
       } else {
         products.value = [];
         selected.value = [];
       }
     } catch (error) {
-      console.log("error on get products", error);
+      console.error("❌ Error al obtener productos:", error);
+      products.value = [];
+      selected.value = [];
     }
   };
 
+  // ✅ Cargar productos si se pasa el flag de inicio
   if (init === "get") getProducts();
 
   return {
