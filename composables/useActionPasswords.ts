@@ -4,21 +4,30 @@ export const useActionPasswords = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
 
-  const checkPassword = async (t: string, p: string) => {
+  // ✅ Estados de validación como constantes legibles
+  const PasswordCheckResult = {
+    VALID: 201,
+    INVALID: 404,
+    ERROR: 500,
+  };
+
+  const checkPassword = async (t: string, p: string): Promise<number> => {
     try {
-      const promise = await databases.listDocuments(
+      const result = await databases.listDocuments(
         config.public.database,
         config.public.cActionPasswords,
         [Query.equal("type", t), Query.equal("password", p)]
       );
 
-      const res = promise.total === 0 ? 404 : 201;
-
-      return res;
+      return result.total === 0
+        ? PasswordCheckResult.INVALID
+        : PasswordCheckResult.VALID;
     } catch (error) {
-      console.log("error on uploads password check", error);
+      console.error("🛑 Error al verificar contraseña:", error);
+      return PasswordCheckResult.ERROR;
     }
   };
+
   return {
     checkPassword,
   };
