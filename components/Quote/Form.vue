@@ -8,8 +8,7 @@
         variant="outlined"
         density="compact"
         hide-details
-      >
-      </v-text-field>
+      ></v-text-field>
 
       <!-- Percentage text field -->
       <v-text-field
@@ -18,8 +17,7 @@
         variant="outlined"
         density="compact"
         hide-details
-      >
-      </v-text-field>
+      ></v-text-field>
 
       <!-- Create/Update Quote -->
       <v-btn
@@ -65,40 +63,43 @@
 </template>
 
 <script lang="ts" setup>
-interface IDepositForm {
+// ✅ Definimos `Quote` si no viene de una interfaz global
+interface Quote {
+  $id: string;
+  quantity: number;
+  percentage: number;
+}
+
+interface IQuoteForm {
   qLabel?: string;
   pLabel?: string;
   state?: Quote;
   showClear: boolean;
 }
 
-const { qLabel, pLabel, state, showClear } = defineProps<IDepositForm>();
-
+const { qLabel, pLabel, state, showClear } = defineProps<IQuoteForm>();
 const { createQuote, updateQuote, deleteQuote } = useQuote();
 
-// ✅ Refs inicializados como string vacía para evitar problemas de `null`
+// ✅ Inicialización segura
 const quantity = ref<string>("");
 const percentage = ref<string>("");
 
-// ✅ Validación sólida con parseFloat y control de NaN
-const invalidQuote = computed<boolean>(() => {
-  const q = parseFloat(quantity.value);
-  const p = parseFloat(percentage.value);
+// ✅ Validación robusta
+const invalidQuote = computed(() => {
+  const q = parseFloat(quantity.value.trim());
+  const p = parseFloat(percentage.value.trim());
   return (
-    isNaN(q) ||
-    !isFinite(q) ||
-    q <= 0 ||
-    isNaN(p) ||
-    !isFinite(p) ||
-    p <= 0
+    isNaN(q) || !isFinite(q) || q <= 0 ||
+    isNaN(p) || !isFinite(p) || p <= 0
   );
 });
 
-const saveTooltip = computed<string>(() => (state ? "Actualizar" : "Guardar"));
+const saveTooltip = computed(() => (state ? "Actualizar" : "Guardar"));
 
+// ✅ Manejo seguro del click
 const handleSaveClick = async () => {
-  const q = quantity.value?.trim();
-  const p = percentage.value?.trim();
+  const q = quantity.value.trim();
+  const p = percentage.value.trim();
 
   if (!q || !p || invalidQuote.value) return;
 
@@ -111,16 +112,17 @@ const handleSaveClick = async () => {
   }
 };
 
+// ✅ Limpiar campos
 const clearForm = () => {
   quantity.value = "";
   percentage.value = "";
 };
 
-// ✅ Precarga de valores cuando se pasa un `state` externo
+// ✅ Precarga al montar
 onMounted(() => {
   if (state) {
-    quantity.value = String(state.quantity || "");
-    percentage.value = String(state.percentage || "");
+    quantity.value = String(state.quantity ?? "");
+    percentage.value = String(state.percentage ?? "");
   }
 });
 </script>
