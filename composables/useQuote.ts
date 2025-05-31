@@ -9,48 +9,65 @@ export const useQuote = () => {
 
   const getQuotes = async () => {
     try {
-      const promise = await databases.listDocuments(
+      const res = await databases.listDocuments(
         config.public.database,
         config.public.cQuotes
       );
 
-      if (promise.total > 0) quotes.value = parseQuotes(promise.documents);
+      if (Array.isArray(res.documents) && res.documents.length > 0) {
+        quotes.value = parseQuotes(res.documents) ?? [];
+      } else {
+        quotes.value = [];
+      }
     } catch (error) {
-      console.log("error on get quotes", error);
+      console.error("❌ Error al obtener cuotas:", error);
+      quotes.value = [];
     }
   };
 
   const createQuote = async (q: string, p: string) => {
     try {
+      const quantity = parseInt(q);
+      const percentage = parseFloat(p);
+
+      if (isNaN(quantity) || isNaN(percentage)) return;
+
       await databases.createDocument(
         config.public.database,
         config.public.cQuotes,
         ID.unique(),
         {
-          quantity: parseInt(q),
-          percentage: parseFloat(p),
+          quantity,
+          percentage,
         }
       );
+
       await getQuotes();
     } catch (error) {
-      console.log("error on create quotes", error);
+      console.error("❌ Error al crear cuota:", error);
     }
   };
 
   const updateQuote = async (id: string, q: string, p: string) => {
     try {
+      const quantity = parseInt(q);
+      const percentage = parseFloat(p);
+
+      if (isNaN(quantity) || isNaN(percentage)) return;
+
       await databases.updateDocument(
         config.public.database,
         config.public.cQuotes,
         id,
         {
-          quantity: parseInt(q),
-          percentage: parseFloat(p),
+          quantity,
+          percentage,
         }
       );
+
       await getQuotes();
     } catch (error) {
-      console.log("error on update quotes", error);
+      console.error("❌ Error al actualizar cuota:", error);
     }
   };
 
@@ -61,14 +78,17 @@ export const useQuote = () => {
         config.public.cQuotes,
         id
       );
+
       await getQuotes();
     } catch (error) {
-      console.log("error on delete quotes", error);
+      console.error("❌ Error al eliminar cuota:", error);
     }
   };
 
-  // Get quotes if state is empty
-  if (quotes.value.length === 0) getQuotes();
+  // ✅ Carga inicial si está vacío
+  if (!quotes.value || quotes.value.length === 0) {
+    getQuotes();
+  }
 
   return {
     quotes,
