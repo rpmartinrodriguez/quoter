@@ -1,16 +1,13 @@
-createVuetify({
-  theme: {
-    defaultTheme: "light",
-    themes: {
-      light: {
-        colors: {
-          primary: "#1867C0",
-          secondary: "#5CBBF6",
-        },
-      },
+import "@mdi/font/css/materialdesignicons.css";
+import "vuetify/styles";
+import { createVuetify } from "vuetify";
+
+export default defineNuxtPlugin((nuxtApp) => {
+  const vuetify = createVuetify({
+    icons: {
+      defaultSet: "mdi", // ✅ necesario para íconos como mdi-check, mdi-delete
     },
-  },
-  icons: {
-    defaultSet: "mdi",
-  },
+  });
+
+  nuxtApp.vueApp.use(vuetify);
 });
