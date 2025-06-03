@@ -31,7 +31,6 @@ const dialogs = reactive<Dialog>({
 const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
-// ✅ Cargamos productos y manejamos selección manual
 const { list: products, selected } = useProducts("get");
 const selectedPs = ref<Product[]>([]);
 
@@ -75,12 +74,78 @@ const toggleSelect = (i: Product) => {
   }
 };
 
-useDeposit();
-useQuote();
+// ✅ Verificaciones adicionales
+const { deposits } = useDeposit();
+const { quotes } = useQuote();
+const config = useRuntimeConfig();
+const configOk = computed(() => {
+  return (
+    !!config.public.endpoint &&
+    !!config.public.project &&
+    !!config.public.database &&
+    !!config.public.cProducts &&
+    !!config.public.cDeposits &&
+    !!config.public.cQuotes
+  );
+});
+const quotesOk = computed(() => Array.isArray(quotes.value) && quotes.value.length > 0);
+const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.value.length > 0);
 </script>
 
 <template>
   <v-container fluid>
+    <!-- ✅ Alertas visuales de chequeo -->
+    <v-alert
+      v-if="configOk"
+      type="success"
+      variant="tonal"
+      class="mb-2 text-center"
+    >
+      ✅ Configuración cargada correctamente
+    </v-alert>
+    <v-alert
+      v-else
+      type="error"
+      variant="outlined"
+      class="mb-2 text-center"
+    >
+      ⚠️ Error de configuración: Verificá el archivo .env
+    </v-alert>
+
+    <v-alert
+      v-if="quotesOk"
+      type="success"
+      variant="tonal"
+      class="mb-2 text-center"
+    >
+      ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones)
+    </v-alert>
+    <v-alert
+      v-else
+      type="error"
+      variant="outlined"
+      class="mb-2 text-center"
+    >
+      ⚠️ No se cargaron las cuotas. Revisar Appwrite o IDs en .env
+    </v-alert>
+
+    <v-alert
+      v-if="depositsOk"
+      type="success"
+      variant="tonal"
+      class="mb-4 text-center"
+    >
+      ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
+    </v-alert>
+    <v-alert
+      v-else
+      type="error"
+      variant="outlined"
+      class="mb-4 text-center"
+    >
+      ⚠️ No se cargaron los depósitos. Revisar Appwrite o IDs en .env
+    </v-alert>
+
     <v-row>
       <v-col cols="12" md="4">
         <v-card flat>
@@ -148,7 +213,7 @@ useQuote();
           <template v-slot:text>
             <v-text-field
               v-model="search"
-              label="Search"
+              label="Buscar"
               prepend-inner-icon="mdi-magnify"
               variant="outlined"
               density="compact"
@@ -280,11 +345,9 @@ useQuote();
 .v-table__wrapper > table > thead > tr > th {
   font-weight: bolder !important;
 }
-
 .border-top-bold {
   border-top: 5px solid #000 !important;
 }
-
 .check-cell .v-selection-control__input {
   justify-content: start !important;
 }
