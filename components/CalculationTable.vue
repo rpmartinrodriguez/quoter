@@ -62,7 +62,7 @@ interface IPCalculations {
 const { formatAsArs } = useFormatters();
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
-const { selected } = useProducts();
+const { products, selected, getProducts } = useProducts();
 
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
@@ -70,6 +70,10 @@ const withCalculations = computed(() => parsedProducts.value);
 const isSelectedValid = computed(() =>
   Array.isArray(selected?.value) && selected.value.length > 0
 );
+
+onMounted(async () => {
+  await getProducts();
+});
 
 watchEffect(() => {
   if (!isSelectedValid.value) {
@@ -80,7 +84,7 @@ watchEffect(() => {
   parsedProducts.value = selected.value
     .filter((p) => p && typeof p.price === "number")
     .map((element) => {
-      const price = Number(element.price || 0);
+      const price = element.price || 0;
       return {
         color: element.color || "#EEE",
         product: `
@@ -109,8 +113,8 @@ const fillDepositCell = (p: number) => {
 const fillRestCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
-    const amount = (p * percentage) / 100;
-    const rest = p - amount;
+    const deposit = (p * percentage) / 100;
+    const rest = p - deposit;
     html += `<tr>
       <td class="px-1 text-right cell"><b>${formatAsArs(rest)}</b></td>
     </tr>`;
@@ -119,16 +123,19 @@ const fillRestCell = (p: number) => {
   return html;
 };
 
+// ✅ Cálculo corregido de cuotas según saldo a financiar
 const calculateQuotes = (p: number): string[] => {
   return quotes.value.map((q) => {
     let html = `<table class="table"><tbody>`;
     deposits.value.forEach((d) => {
-      const amount = (p * d.percentage) / 100;
-      const quote = ((p - amount) * q.percentage) / 100;
+      const deposit = (p * d.percentage) / 100;
+      const saldoAFinanciar = p - deposit;
+      const cuota = (saldoAFinanciar * q.percentage) / 100;
       html += `<tr>
         <td class="px-1 text-center cell cursor-pointer can-copy"
-          data-percentage="${d.percentage}" data-quotes="${q.quantity}">
-          ${formatAsArs(Math.round(quote))}
+            data-percentage="${d.percentage}"
+            data-quotes="${q.quantity}">
+          ${formatAsArs(Math.round(cuota))}
         </td>
       </tr>`;
     });
@@ -139,7 +146,7 @@ const calculateQuotes = (p: number): string[] => {
 
 const totals = computed(() => {
   if (!isSelectedValid.value) return 0;
-  return selected.value.reduce((t, p) => t + Number(p.price || 0), 0);
+  return selected.value.reduce((t, p) => t + (p.price || 0), 0);
 });
 
 const totalDeposits = computed(() => {
@@ -158,8 +165,8 @@ const totalDeposits = computed(() => {
 const totalRests = computed(() => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
-    const amount = (totals.value * percentage) / 100;
-    const rest = totals.value - amount;
+    const deposit = (totals.value * percentage) / 100;
+    const rest = totals.value - deposit;
     html += `<tr>
       <td class="px-1 text-right cell"><b>${formatAsArs(Math.round(rest))}</b></td>
     </tr>`;
@@ -172,8 +179,9 @@ const totalQuotes = computed(() => {
   return quotes.value.map((q) => {
     let html = `<table class="table"><tbody>`;
     deposits.value.forEach((d) => {
-      const amount = (totals.value * d.percentage) / 100;
-      const quote = ((totals.value - amount) * q.percentage) / 100;
+      const deposit = (totals.value * d.percentage) / 100;
+      const saldoAFinanciar = totals.value - deposit;
+      const quote = (saldoAFinanciar * q.percentage) / 100;
       html += `<tr>
         <td class="px-1 text-center cell">${formatAsArs(Math.round(quote))}</td>
       </tr>`;
