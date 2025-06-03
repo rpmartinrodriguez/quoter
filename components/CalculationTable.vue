@@ -1,13 +1,27 @@
 <template>
   <div>
+    <!-- Validación visual de carga de datos -->
     <v-alert
       type="success"
       variant="outlined"
       class="mb-4"
-      v-if="quotes.length > 0 && deposits.length > 0"
+      v-if="quotes.length > 0 && deposits.length > 0 && selected.length > 0"
     >
+      ✅ Productos seleccionados: {{ selected.length }} <br />
       ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones) <br />
       ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
+    </v-alert>
+
+    <v-alert
+      v-else
+      type="warning"
+      variant="outlined"
+      class="mb-4"
+    >
+      ⚠️ Aún faltan datos: <br />
+      Productos seleccionados: {{ selected.length }} <br />
+      Cuotas: {{ quotes.length }} <br />
+      Depósitos: {{ deposits.length }}
     </v-alert>
 
     <v-data-table
@@ -71,12 +85,21 @@ const isSelectedValid = computed(() =>
   Array.isArray(selected?.value) && selected.value.length > 0
 );
 
+// ▶️ Obtener productos y loguear entradas clave
 onMounted(async () => {
   await getProducts();
+  console.log("📦 Productos cargados:", products.value);
+  console.log("💰 Depósitos:", deposits.value);
+  console.log("📆 Cuotas:", quotes.value);
+  console.log("✅ Productos seleccionados:", selected.value);
 });
 
+// ▶️ Calcula los valores por producto seleccionado
 watchEffect(() => {
+  console.log("⏳ Ejecutando cálculo...");
+
   if (!isSelectedValid.value) {
+    console.warn("⚠️ No hay productos seleccionados.");
     parsedProducts.value = [];
     return;
   }
@@ -95,8 +118,11 @@ watchEffect(() => {
         quotes: calculateQuotes(price),
       };
     });
+
+  console.log("✅ parsedProducts generado:", parsedProducts.value);
 });
 
+// Función para mostrar tabla de depósitos por producto
 const fillDepositCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
@@ -110,6 +136,7 @@ const fillDepositCell = (p: number) => {
   return html;
 };
 
+// Muestra saldo a financiar por producto
 const fillRestCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
@@ -123,19 +150,17 @@ const fillRestCell = (p: number) => {
   return html;
 };
 
-// ✅ Cálculo corregido de cuotas según saldo a financiar
+// Muestra las cuotas por producto según cada configuración
 const calculateQuotes = (p: number): string[] => {
   return quotes.value.map((q) => {
     let html = `<table class="table"><tbody>`;
     deposits.value.forEach((d) => {
       const deposit = (p * d.percentage) / 100;
-      const saldoAFinanciar = p - deposit;
-      const cuota = (saldoAFinanciar * q.percentage) / 100;
+      const toFinance = p - deposit;
+      const quote = (toFinance * q.percentage) / 100;
       html += `<tr>
-        <td class="px-1 text-center cell cursor-pointer can-copy"
-            data-percentage="${d.percentage}"
-            data-quotes="${q.quantity}">
-          ${formatAsArs(Math.round(cuota))}
+        <td class="px-1 text-center cell cursor-pointer can-copy" data-percentage="${d.percentage}" data-quotes="${q.quantity}">
+          ${formatAsArs(Math.round(quote))}
         </td>
       </tr>`;
     });
@@ -144,6 +169,7 @@ const calculateQuotes = (p: number): string[] => {
   });
 };
 
+// Totales
 const totals = computed(() => {
   if (!isSelectedValid.value) return 0;
   return selected.value.reduce((t, p) => t + (p.price || 0), 0);
@@ -165,8 +191,7 @@ const totalDeposits = computed(() => {
 const totalRests = computed(() => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
-    const deposit = (totals.value * percentage) / 100;
-    const rest = totals.value - deposit;
+    const rest = totals.value - (totals.value * percentage) / 100;
     html += `<tr>
       <td class="px-1 text-right cell"><b>${formatAsArs(Math.round(rest))}</b></td>
     </tr>`;
@@ -180,8 +205,8 @@ const totalQuotes = computed(() => {
     let html = `<table class="table"><tbody>`;
     deposits.value.forEach((d) => {
       const deposit = (totals.value * d.percentage) / 100;
-      const saldoAFinanciar = totals.value - deposit;
-      const quote = (saldoAFinanciar * q.percentage) / 100;
+      const toFinance = totals.value - deposit;
+      const quote = (toFinance * q.percentage) / 100;
       html += `<tr>
         <td class="px-1 text-center cell">${formatAsArs(Math.round(quote))}</td>
       </tr>`;
