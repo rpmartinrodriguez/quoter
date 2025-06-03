@@ -1,3 +1,53 @@
+<template>
+  <div>
+    <v-alert
+      type="success"
+      variant="outlined"
+      class="mb-4"
+      v-if="quotes.length > 0 && deposits.length > 0"
+    >
+      ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones) <br />
+      ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
+    </v-alert>
+
+    <v-data-table
+      :headers="headers"
+      :items="withCalculations"
+      item-value="product"
+      hide-default-footer
+      class="mt-2"
+    >
+      <template v-slot:item.deposit="{ item }">
+        <div v-html="item.deposit"></div>
+      </template>
+      <template v-slot:item.rest="{ item }">
+        <div v-html="item.rest"></div>
+      </template>
+      <template v-for="(q, i) in quotes" v-slot:[`item.quotes_${i}`]="{ item }">
+        <div v-html="item.quotes[i]"></div>
+      </template>
+
+      <!-- Totales -->
+      <template v-slot:bottom>
+        <tfoot>
+          <tr class="font-weight-bold">
+            <td style="background-color: #f0f0f0">TOTAL</td>
+            <td style="background-color: #f0f0f0"></td>
+            <td style="background-color: #f0f0f0" v-html="totalDeposits"></td>
+            <td style="background-color: #f0f0f0" v-html="totalRests"></td>
+            <td
+              v-for="(qt, i) in totalQuotes"
+              :key="i"
+              style="background-color: #f0f0f0"
+              v-html="qt"
+            ></td>
+          </tr>
+        </tfoot>
+      </template>
+    </v-data-table>
+  </div>
+</template>
+
 <script lang="ts" setup>
 import { useClipboard } from "@vueuse/core";
 
@@ -17,25 +67,16 @@ const { products, selected, getProducts } = useProducts();
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
 
-// ✅ Protección: chequear que `selected` existe y es array
-const isSelectedValid = computed(() => Array.isArray(selected?.value) && selected.value.length > 0);
+const isSelectedValid = computed(() =>
+  Array.isArray(selected?.value) && selected.value.length > 0
+);
 
-// 🟢 Carga inicial protegida
 onMounted(async () => {
   await getProducts();
-  console.log("🧪 Productos cargados desde Appwrite:", products.value);
-
-  if (isSelectedValid.value) {
-    console.log("🧩 Productos seleccionados:", selected.value);
-  } else {
-    console.warn("⚠️ No hay productos seleccionados aún.");
-  }
 });
 
-// 🟢 Construcción segura de parsedProducts
 watchEffect(() => {
   if (!isSelectedValid.value) {
-    console.log("📭 Esperando selección de productos...");
     parsedProducts.value = [];
     return;
   }
@@ -54,11 +95,8 @@ watchEffect(() => {
         quotes: calculateQuotes(price),
       };
     });
-
-  console.log("✅ parsedProducts actualizado:", parsedProducts.value);
 });
 
-// 🔢 Funciones auxiliares
 const fillDepositCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
@@ -91,7 +129,9 @@ const calculateQuotes = (p: number): string[] => {
       const amount = (p * d.percentage) / 100;
       const quote = ((p - amount) * q.percentage) / 100;
       html += `<tr>
-        <td class="px-1 text-center cell">${formatAsArs(Math.round(quote))}</td>
+        <td class="px-1 text-center cell cursor-pointer can-copy" data-percentage="${d.percentage}" data-quotes="${q.quantity}">
+          ${formatAsArs(Math.round(quote))}
+        </td>
       </tr>`;
     });
     html += `</tbody></table>`;
@@ -99,7 +139,6 @@ const calculateQuotes = (p: number): string[] => {
   });
 };
 
-// 🔢 Totales protegidos
 const totals = computed(() => {
   if (!isSelectedValid.value) return 0;
   return selected.value.reduce((t, p) => t + (p.price || 0), 0);
@@ -138,9 +177,7 @@ const totalQuotes = computed(() => {
       const amount = (totals.value * d.percentage) / 100;
       const quote = ((totals.value - amount) * q.percentage) / 100;
       html += `<tr>
-        <td class="px-1 text-center cell cursor-pointer can-copy" data-percentage="${d.percentage}" data-quotes="${q.quantity}">
-          ${formatAsArs(Math.round(quote))}
-        </td>
+        <td class="px-1 text-center cell">${formatAsArs(Math.round(quote))}</td>
       </tr>`;
     });
     html += `</tbody></table>`;
@@ -148,38 +185,28 @@ const totalQuotes = computed(() => {
   });
 });
 
-// 📋 Copiado de resumen
+const headers = computed(() => {
+  const base = [
+    { title: "Producto", key: "product", sortable: false },
+    { title: "% Depósito", key: "deposit", sortable: false },
+    { title: "Depósito", key: "deposit", sortable: false },
+    { title: "Monto a financiar", key: "rest", sortable: false },
+  ];
+
+  const dynamic = quotes.value.map((q, i) => ({
+    title: `${q.quantity} cuotas (${q.percentage}%)`,
+    key: `quotes_${i}`,
+    sortable: false,
+  }));
+
+  return [...base, ...dynamic];
+});
+
 const source = ref("");
 const { copy } = useClipboard({ source });
-
-const test = (event: any) => {
-  const elem = event.target;
-  if (!isSelectedValid.value) return;
-  const productsList = selected.value.map((s) => s.detail);
-  if (elem.classList.contains("can-copy")) {
-    source.value = `Hola!!
-    Quería agradecerte por la excelente decisión que tomaste. Te hacemos un breve resumen para que tengas toda la información a mano:
-
-    \t•\t*Pieza${productsList.length > 1 ? `s: ${productsList.join(", ")}` : `: ${productsList[0]}`}*
-    \t•\tDepósito inicial: ${formatAsArs(
-      Math.round((totals.value * elem.dataset.percentage) / 100)
-    )}
-    \t•\tCantidad de cuotas: ${elem.dataset.quotes}
-    \t•\tValor de cada cuota: ${elem.textContent.trim()}
-
-    ¡Gracias por confiar en nosotros! Royal Prestige!
-
-    Links útiles:
-    - Curado de ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
-    - Recetas: https://www.royalprestige.com/ar/inspiracion/recetas
-    - Instagram: https://www.instagram.com/royalprestigeargoficial`;
-
-    copy(source.value);
-  }
-};
 </script>
 
-<style>
+<style scoped>
 .table {
   border-spacing: 0;
   width: 100%;
