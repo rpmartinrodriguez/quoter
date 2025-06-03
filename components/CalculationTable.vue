@@ -62,7 +62,7 @@ interface IPCalculations {
 const { formatAsArs } = useFormatters();
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
-const { products, selected, getProducts } = useProducts();
+const { selected } = useProducts();
 
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
@@ -70,10 +70,6 @@ const withCalculations = computed(() => parsedProducts.value);
 const isSelectedValid = computed(() =>
   Array.isArray(selected?.value) && selected.value.length > 0
 );
-
-onMounted(async () => {
-  await getProducts();
-});
 
 watchEffect(() => {
   if (!isSelectedValid.value) {
@@ -84,7 +80,7 @@ watchEffect(() => {
   parsedProducts.value = selected.value
     .filter((p) => p && typeof p.price === "number")
     .map((element) => {
-      const price = element.price || 0;
+      const price = Number(element.price || 0);
       return {
         color: element.color || "#EEE",
         product: `
@@ -114,8 +110,9 @@ const fillRestCell = (p: number) => {
   let html = `<table class="table"><tbody>`;
   deposits.value.forEach(({ percentage }) => {
     const amount = (p * percentage) / 100;
+    const rest = p - amount;
     html += `<tr>
-      <td class="px-1 text-right cell"><b>${formatAsArs(p - amount)}</b></td>
+      <td class="px-1 text-right cell"><b>${formatAsArs(rest)}</b></td>
     </tr>`;
   });
   html += `</tbody></table>`;
@@ -129,7 +126,8 @@ const calculateQuotes = (p: number): string[] => {
       const amount = (p * d.percentage) / 100;
       const quote = ((p - amount) * q.percentage) / 100;
       html += `<tr>
-        <td class="px-1 text-center cell cursor-pointer can-copy" data-percentage="${d.percentage}" data-quotes="${q.quantity}">
+        <td class="px-1 text-center cell cursor-pointer can-copy"
+          data-percentage="${d.percentage}" data-quotes="${q.quantity}">
           ${formatAsArs(Math.round(quote))}
         </td>
       </tr>`;
@@ -141,7 +139,7 @@ const calculateQuotes = (p: number): string[] => {
 
 const totals = computed(() => {
   if (!isSelectedValid.value) return 0;
-  return selected.value.reduce((t, p) => t + (p.price || 0), 0);
+  return selected.value.reduce((t, p) => t + Number(p.price || 0), 0);
 });
 
 const totalDeposits = computed(() => {
