@@ -5,7 +5,6 @@ const quotes = ref<Quote[]>([]);
 export const useQuote = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  const { parseQuotes } = useParse();
 
   const getQuotes = async () => {
     try {
@@ -14,11 +13,11 @@ export const useQuote = () => {
         config.public.cQuotes
       );
 
-      if (Array.isArray(res.documents) && res.documents.length > 0) {
-        quotes.value = parseQuotes(res.documents) ?? [];
-      } else {
-        quotes.value = [];
-      }
+      quotes.value = res.documents.map((doc) => ({
+        quantity: doc.quantity,
+        percentage: doc.percentage,
+        $id: doc.$id,
+      }));
     } catch (error) {
       console.error("❌ Error al obtener cuotas:", error);
       quotes.value = [];
