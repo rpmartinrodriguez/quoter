@@ -1,10 +1,10 @@
 import { ID, Query } from "appwrite";
-import { ref, shallowRef } from "vue"; // 🔄 Agregado shallowRef
+import { ref } from "vue";
 
 const data: Product[] = [];
 
 const products = ref<Product[]>([]);
-const selected = shallowRef<Product[]>([]); // ✅ Importante para mantener referencia reactiva
+const selected = ref<Product[]>([]); // ✅ Cambiado a `ref` para evitar problemas de reactividad
 
 export const useProducts = (init?: string) => {
   const config = useRuntimeConfig();
@@ -13,15 +13,14 @@ export const useProducts = (init?: string) => {
 
   const createProducts = async () => {
     try {
-      const promises = data.map((p) => {
-        return databases.createDocument(
+      const promises = data.map((p) =>
+        databases.createDocument(
           config.public.database,
           config.public.cProducts,
           ID.unique(),
           p
-        );
-      });
-
+        )
+      );
       await Promise.all(promises);
     } catch (error) {
       console.error("❌ Error al crear productos:", error);
@@ -35,7 +34,6 @@ export const useProducts = (init?: string) => {
         config.public.cProducts,
         [Query.limit(500)]
       );
-
       if (Array.isArray(res.documents) && res.documents.length > 0) {
         const parsed = parseProducts(res.documents);
         products.value = parsed ?? [];
