@@ -4,7 +4,7 @@
       type="success"
       variant="outlined"
       class="mb-4"
-      v-if="quotes.length > 0 && deposits.length > 0 && isSelectedValid"
+      v-if="quotes.length > 0 && deposits.length > 0 && isSelectedValid.value"
     >
       ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones) <br />
       ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
