@@ -31,28 +31,16 @@ const dialogs = reactive<Dialog>({
 const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
-// ✅ Obtener lista y referencia global
-const { list: products, selected, getProducts } = useProducts("get");
+const { list: products, selected } = useProducts("get");
+const selectedPs = ref<Product[]>([]);
 
-// ✅ Lógica de selección
-const toggleSelect = (product: Product) => {
-  if (!product?.$id) return;
+// ✅ Sincronizar con estado global
+watch(selectedPs, (newVal) => {
+  selected.value = [...newVal];
+});
 
-  const index = selected.value.findIndex((p) => p?.$id === product.$id);
-  if (index !== -1) {
-    selected.value.splice(index, 1);
-  } else {
-    selected.value.push(product);
-  }
-};
-
-const isSelected = (product: Product) => {
-  return !!product?.$id && selected.value.some((p) => p.$id === product.$id);
-};
-
-const noneSelected = computed(() => selected.value.length === 0);
-
-const headers = ref([
+const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
+const headers = ref<Object[]>([
   { align: "start", key: "detail", title: "Detalle" },
   { align: "start", key: "composition", title: "Composición" },
   { align: "start", key: "price", title: "Precio de lista" },
@@ -60,19 +48,37 @@ const headers = ref([
 
 const total = ref<number>(0);
 const newCustomCalculation = () => {
-  total.value = selected.value.reduce((sum, prod) => sum + (prod?.price || 0), 0);
+  total.value = selectedPs.value.reduce(
+    (sum, prod) => sum + (prod?.price || 0),
+    0
+  );
   dialogs.customCalculation = true;
 };
 
 const productsDetails = computed<string[]>(() =>
-  selected.value.filter((p) => !!p?.detail).map((p: Product) => p.detail)
+  selectedPs.value
+    .filter((p) => !!p?.detail)
+    .map((p: Product) => p.detail)
 );
 
-// ✅ Configuración y chequeos
+// 👉 Lógica de selección manual
+const isSelected = (i: Product) =>
+  !!i?.$id && selectedPs.value.some((item: Product) => item?.$id === i.$id);
+
+const toggleSelect = (i: Product) => {
+  if (!i?.$id) return;
+  const index = selectedPs.value.findIndex((sp) => sp?.$id === i.$id);
+  if (index !== -1) {
+    selectedPs.value.splice(index, 1);
+  } else {
+    selectedPs.value.push(i);
+  }
+};
+
+// ✅ Verificaciones adicionales
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const config = useRuntimeConfig();
-
 const configOk = computed(() => {
   return (
     !!config.public.endpoint &&
@@ -89,7 +95,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
 
 <template>
   <v-container fluid>
-    <!-- Alertas de sistema -->
+    <!-- Alertas -->
     <v-alert v-if="configOk" type="success" variant="tonal" class="mb-2 text-center">
       ✅ Configuración cargada correctamente
     </v-alert>
@@ -146,7 +152,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
                       variant="text"
                       density="compact"
                       icon
-                      @click="selected = []"
+                      @click="selectedPs = []"
                     >
                       <v-tooltip activator="parent" location="bottom">Reiniciar selección</v-tooltip>
                       <v-icon>mdi-checkbox-multiple-blank-outline</v-icon>
@@ -159,7 +165,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
                     icon
                     to="/settings"
                   >
-                    <v-tooltip activator="parent" location="bottom">Configurar</v-tooltip>
+                    <v-tooltip activator="parent" location="bottom">Configurar calculadora</v-tooltip>
                     <v-icon>mdi-cog</v-icon>
                   </v-btn>
                 </div>
@@ -176,7 +182,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
               density="compact"
               hide-details
               single-line
-            />
+            ></v-text-field>
           </template>
 
           <v-card-text>
@@ -186,17 +192,15 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
               :items="products"
               :search="search"
               :loading="loadings.products"
-              show-select
-              return-object
             >
               <template v-slot:item="{ item }">
-                <tr :style="{ backgroundColor: isSelected(item) ? item?.color || '' : '' }">
+                <tr :style="{ 'background-color': isSelected(item) ? item?.color : '' }">
                   <td class="check-cell">
                     <v-checkbox-btn
                       :model-value="isSelected(item)"
-                      @update:model-value="toggleSelect(item)"
                       color="primary"
-                    />
+                      @update:model-value="toggleSelect(item)"
+                    ></v-checkbox-btn>
                   </td>
                   <td>{{ item?.detail }}</td>
                   <td>{{ item?.composition }}</td>
@@ -211,7 +215,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
       <v-col cols="8" class="d-none d-md-flex">
         <v-card flat>
           <v-card-title class="d-flex items-center justify-space-between">
-            <span>Cálculos</span>
+            <span> Cálculos </span>
             <v-btn
               v-if="!noneSelected"
               class="px-2"
@@ -225,8 +229,8 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
             </v-btn>
           </v-card-title>
           <v-card-text>
-            <div v-if="noneSelected" class="text-center">
-              Escoja uno o varios productos para cotizar
+            <div v-if="noneSelected">
+              <p class="text-center">Escoja uno o varios productos para cotizar</p>
             </div>
             <div v-else>
               <CalculationTable />
@@ -236,13 +240,12 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
       </v-col>
     </v-row>
 
-    <!-- Cálculo en móvil -->
     <v-dialog v-model="dialogs.calculation" transition="dialog-bottom-transition" fullscreen>
       <v-card>
         <v-toolbar>
-          <v-btn icon="mdi-close" @click="dialogs.calculation = false" />
+          <v-btn icon="mdi-close" @click="dialogs.calculation = false"></v-btn>
           <v-toolbar-title style="flex: none">Cálculos</v-toolbar-title>
-          <v-spacer />
+          <v-spacer></v-spacer>
           <v-btn icon @click="newCustomCalculation">
             <v-tooltip activator="parent" location="bottom">Cálculo personalizado</v-tooltip>
             <v-icon>mdi-cash-edit</v-icon>
@@ -254,14 +257,17 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
       </v-card>
     </v-dialog>
 
-    <!-- Subida de Excel -->
     <ExcelForm :show="dialogs.excel" @finish="dialogs.excel = false" />
 
-    <!-- Diálogo de cálculo personalizado -->
-    <v-dialog v-model="dialogs.customCalculation" persistent transition="dialog-bottom-transition" max-width="900">
+    <v-dialog
+      v-model="dialogs.customCalculation"
+      persistent
+      transition="dialog-bottom-transition"
+      max-width="900"
+    >
       <v-card>
         <v-toolbar>
-          <v-btn icon="mdi-close" @click="dialogs.customCalculation = false" />
+          <v-btn icon="mdi-close" @click="dialogs.customCalculation = false"></v-btn>
           <v-toolbar-title>Depósito personalizado</v-toolbar-title>
         </v-toolbar>
         <v-card-text>
