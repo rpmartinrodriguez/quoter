@@ -34,13 +34,16 @@ const dataTableHeight = computed(() => windowHeight.value - 196);
 const { list: products, selected } = useProducts("get");
 const selectedPs = ref<Product[]>([]);
 
-// ✅ Sincronizar con estado global
+// ✅ Sincronizar manualmente los productos seleccionados
 watch(selectedPs, (newVal) => {
   selected.value = [...newVal];
 });
 
-const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
-const headers = ref<Object[]>([
+// Estado de selección vacía
+const noneSelected = computed(() => selectedPs.value.length === 0);
+
+// Encabezados tabla
+const headers = ref([
   { align: "start", key: "detail", title: "Detalle" },
   { align: "start", key: "composition", title: "Composición" },
   { align: "start", key: "price", title: "Precio de lista" },
@@ -55,15 +58,15 @@ const newCustomCalculation = () => {
   dialogs.customCalculation = true;
 };
 
-const productsDetails = computed<string[]>(() =>
+const productsDetails = computed(() =>
   selectedPs.value
     .filter((p) => !!p?.detail)
     .map((p: Product) => p.detail)
 );
 
-// 👉 Lógica de selección manual
+// 👉 Lógica de selección manual (no usar `v-model:selected`)
 const isSelected = (i: Product) =>
-  !!i?.$id && selectedPs.value.some((item: Product) => item?.$id === i.$id);
+  !!i?.$id && selectedPs.value.some((item) => item?.$id === i.$id);
 
 const toggleSelect = (i: Product) => {
   if (!i?.$id) return;
@@ -75,27 +78,25 @@ const toggleSelect = (i: Product) => {
   }
 };
 
-// ✅ Verificaciones adicionales
+// Validaciones generales
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const config = useRuntimeConfig();
-const configOk = computed(() => {
-  return (
-    !!config.public.endpoint &&
-    !!config.public.project &&
-    !!config.public.database &&
-    !!config.public.cProducts &&
-    !!config.public.cDeposits &&
-    !!config.public.cQuotes
-  );
-});
+const configOk = computed(() =>
+  !!config.public.endpoint &&
+  !!config.public.project &&
+  !!config.public.database &&
+  !!config.public.cProducts &&
+  !!config.public.cDeposits &&
+  !!config.public.cQuotes
+);
 const quotesOk = computed(() => Array.isArray(quotes.value) && quotes.value.length > 0);
 const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.value.length > 0);
 </script>
 
 <template>
   <v-container fluid>
-    <!-- Alertas -->
+    <!-- Alertas de validación -->
     <v-alert v-if="configOk" type="success" variant="tonal" class="mb-2 text-center">
       ✅ Configuración cargada correctamente
     </v-alert>
@@ -200,7 +201,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
                       :model-value="isSelected(item)"
                       color="primary"
                       @update:model-value="toggleSelect(item)"
-                    ></v-checkbox-btn>
+                    />
                   </td>
                   <td>{{ item?.detail }}</td>
                   <td>{{ item?.composition }}</td>
@@ -215,7 +216,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
       <v-col cols="8" class="d-none d-md-flex">
         <v-card flat>
           <v-card-title class="d-flex items-center justify-space-between">
-            <span> Cálculos </span>
+            <span>Cálculos</span>
             <v-btn
               v-if="!noneSelected"
               class="px-2"
@@ -245,7 +246,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
         <v-toolbar>
           <v-btn icon="mdi-close" @click="dialogs.calculation = false"></v-btn>
           <v-toolbar-title style="flex: none">Cálculos</v-toolbar-title>
-          <v-spacer></v-spacer>
+          <v-spacer />
           <v-btn icon @click="newCustomCalculation">
             <v-tooltip activator="parent" location="bottom">Cálculo personalizado</v-tooltip>
             <v-icon>mdi-cash-edit</v-icon>
