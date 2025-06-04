@@ -1,9 +1,10 @@
 import { ID, Query } from "appwrite";
+import { ref, shallowRef } from "vue"; // 🔄 Agregado shallowRef
 
 const data: Product[] = [];
 
 const products = ref<Product[]>([]);
-const selected = ref<Product[]>([]);
+const selected = shallowRef<Product[]>([]); // ✅ Importante para mantener referencia reactiva
 
 export const useProducts = (init?: string) => {
   const config = useRuntimeConfig();
@@ -49,12 +50,10 @@ export const useProducts = (init?: string) => {
     }
   };
 
-  // ✅ Cargar productos si se pasa el flag de inicio
   if (init === "get") getProducts();
 
   return {
     getProducts,
-    // createProducts,
     list: products,
     selected,
   };
