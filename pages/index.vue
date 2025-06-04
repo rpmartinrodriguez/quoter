@@ -32,12 +32,7 @@ const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
 const { list: products, selected } = useProducts("get");
-const selectedPs = ref<Product[]>([]);
-
-// 🔄 Sincronizar con estado global
-watch(selectedPs, (newVal) => {
-  selected.value = [...newVal];
-});
+const selectedPs = selected; // ✅ Sincronización directa y reactiva
 
 const noneSelected = computed<boolean>(() => selectedPs.value.length === 0);
 const headers = ref<Object[]>([
