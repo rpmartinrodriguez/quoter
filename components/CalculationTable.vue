@@ -1,22 +1,13 @@
 <template>
   <div>
-    <!-- ✅ Validación visual -->
     <v-alert
-      v-if="quotes.length > 0 && deposits.length > 0 && selected.length > 0"
       type="success"
       variant="outlined"
       class="mb-4"
+      v-if="quotes.length > 0 && deposits.length > 0 && isSelectedValid"
     >
-      ✅ Productos seleccionados: {{ selected.length }} <br />
       ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones) <br />
       ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
-    </v-alert>
-
-    <v-alert v-else type="warning" variant="outlined" class="mb-4">
-      ⚠️ Aún faltan datos: <br />
-      Productos seleccionados: {{ selected.length }} <br />
-      Cuotas: {{ quotes.length }} <br />
-      Depósitos: {{ deposits.length }}
     </v-alert>
 
     <v-data-table
@@ -29,11 +20,9 @@
       <template v-slot:item.deposit="{ item }">
         <div v-html="item.deposit"></div>
       </template>
-
       <template v-slot:item.rest="{ item }">
         <div v-html="item.rest"></div>
       </template>
-
       <template v-for="(q, i) in quotes" v-slot:[`item.quotes_${i}`]="{ item }">
         <div v-html="item.quotes[i]"></div>
       </template>
@@ -59,31 +48,24 @@
 </template>
 
 <script lang="ts" setup>
-import { useClipboard } from "@vueuse/core";
+const { formatAsArs } = useFormatters();
+const { deposits } = useDeposit();
+const { quotes } = useQuote();
+const { selected } = useProducts();
 
 interface IPCalculations {
-  color: string;
   product: string;
   deposit: string;
   rest: string;
   quotes: string[];
 }
 
-const { formatAsArs } = useFormatters();
-const { deposits } = useDeposit();
-const { quotes } = useQuote();
-const { products, selected, getProducts } = useProducts();
-
 const parsedProducts = ref<IPCalculations[]>([]);
 const withCalculations = computed(() => parsedProducts.value);
 
 const isSelectedValid = computed(() =>
-  Array.isArray(selected?.value) && selected.value.length > 0
+  Array.isArray(selected.value) && selected.value.length > 0
 );
-
-onMounted(async () => {
-  await getProducts();
-});
 
 watchEffect(() => {
   if (!isSelectedValid.value) {
@@ -91,128 +73,120 @@ watchEffect(() => {
     return;
   }
 
-  parsedProducts.value = selected.value
-    .filter((p) => p && typeof p.price === "number")
-    .map((element) => {
-      const price = Number(element.price || 0);
-      return {
-        color: element.color || "#EEE",
-        product: `
-          <div class="text-center"><b>${element.detail || "Producto"}</b></div>
-          <div class="text-center my-3">${formatAsArs(price)}</div>`,
-        deposit: generateDepositTable(price),
-        rest: generateRestTable(price),
-        quotes: generateQuoteTables(price),
-      };
-    });
+  parsedProducts.value = selected.value.map((product) => {
+    const price = product.price || 0;
+    return {
+      product: `
+        <div class="text-center"><b>${product.detail || "Producto"}</b></div>
+        <div class="text-center my-3">${formatAsArs(price)}</div>`,
+      deposit: getDepositTable(price),
+      rest: getRestTable(price),
+      quotes: getQuotesTables(price),
+    };
+  });
 });
 
-const generateDepositTable = (price: number) => {
-  let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(({ percentage }) => {
-    const amount = price * (percentage / 100);
+const getDepositTable = (price: number): string => {
+  let html = "<table class='table'><tbody>";
+  deposits.value.forEach((dep) => {
+    const amount = (price * dep.percentage) / 100;
     html += `<tr>
-      <td class="px-1 text-center cell">${percentage}%</td>
-      <td class="px-1 text-center cell"><b>${formatAsArs(amount)}</b></td>
+      <td class="px-1 text-center">${dep.percentage}%</td>
+      <td class="px-1 text-center"><b>${formatAsArs(amount)}</b></td>
     </tr>`;
   });
-  html += `</tbody></table>`;
+  html += "</tbody></table>";
   return html;
 };
 
-const generateRestTable = (price: number) => {
-  let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(({ percentage }) => {
-    const rest = price - price * (percentage / 100);
+const getRestTable = (price: number): string => {
+  let html = "<table class='table'><tbody>";
+  deposits.value.forEach((dep) => {
+    const deposit = (price * dep.percentage) / 100;
+    const rest = price - deposit;
     html += `<tr>
-      <td class="px-1 text-right cell"><b>${formatAsArs(rest)}</b></td>
+      <td class="px-1 text-right"><b>${formatAsArs(rest)}</b></td>
     </tr>`;
   });
-  html += `</tbody></table>`;
+  html += "</tbody></table>";
   return html;
 };
 
-const generateQuoteTables = (price: number): string[] => {
+const getQuotesTables = (price: number): string[] => {
   return quotes.value.map((quote) => {
-    let html = `<table class="table"><tbody>`;
-    deposits.value.forEach((deposit) => {
-      const montoFinanciar = price - price * (deposit.percentage / 100);
-      const cuota = montoFinanciar * (quote.percentage / 100);
+    let html = "<table class='table'><tbody>";
+    deposits.value.forEach((dep) => {
+      const deposit = (price * dep.percentage) / 100;
+      const toFinance = price - deposit;
+      const amount = (toFinance * quote.percentage) / 100;
       html += `<tr>
-        <td class="px-1 text-center cell">
-          ${formatAsArs(Math.round(cuota))}
-        </td>
+        <td class="px-1 text-center">${formatAsArs(Math.round(amount))}</td>
       </tr>`;
     });
-    html += `</tbody></table>`;
+    html += "</tbody></table>";
     return html;
   });
 };
 
-const totals = computed(() => {
-  if (!isSelectedValid.value) return 0;
-  return selected.value.reduce((sum, p) => sum + (Number(p.price) || 0), 0);
-});
+const totals = computed(() =>
+  selected.value.reduce((acc, prod) => acc + (prod.price || 0), 0)
+);
 
 const totalDeposits = computed(() => {
-  let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(({ percentage }) => {
-    const amount = totals.value * (percentage / 100);
+  let html = "<table class='table'><tbody>";
+  deposits.value.forEach((dep) => {
+    const amount = (totals.value * dep.percentage) / 100;
     html += `<tr>
-      <td class="px-1 text-center cell">${percentage}%</td>
-      <td class="px-1 text-center cell"><b>${formatAsArs(amount)}</b></td>
+      <td class="px-1 text-center">${dep.percentage}%</td>
+      <td class="px-1 text-center"><b>${formatAsArs(Math.round(amount))}</b></td>
     </tr>`;
   });
-  html += `</tbody></table>`;
+  html += "</tbody></table>";
   return html;
 });
 
 const totalRests = computed(() => {
-  let html = `<table class="table"><tbody>`;
-  deposits.value.forEach(({ percentage }) => {
-    const rest = totals.value - totals.value * (percentage / 100);
+  let html = "<table class='table'><tbody>";
+  deposits.value.forEach((dep) => {
+    const deposit = (totals.value * dep.percentage) / 100;
+    const rest = totals.value - deposit;
     html += `<tr>
-      <td class="px-1 text-right cell"><b>${formatAsArs(rest)}</b></td>
+      <td class="px-1 text-right"><b>${formatAsArs(Math.round(rest))}</b></td>
     </tr>`;
   });
-  html += `</tbody></table>`;
+  html += "</tbody></table>";
   return html;
 });
 
 const totalQuotes = computed(() => {
-  return quotes.value.map((q) => {
-    let html = `<table class="table"><tbody>`;
-    deposits.value.forEach((d) => {
-      const toFinance = totals.value - totals.value * (d.percentage / 100);
-      const cuota = toFinance * (q.percentage / 100);
+  return quotes.value.map((quote) => {
+    let html = "<table class='table'><tbody>";
+    deposits.value.forEach((dep) => {
+      const deposit = (totals.value * dep.percentage) / 100;
+      const toFinance = totals.value - deposit;
+      const amount = (toFinance * quote.percentage) / 100;
       html += `<tr>
-        <td class="px-1 text-center cell">${formatAsArs(Math.round(cuota))}</td>
+        <td class="px-1 text-center">${formatAsArs(Math.round(amount))}</td>
       </tr>`;
     });
-    html += `</tbody></table>`;
+    html += "</tbody></table>";
     return html;
   });
 });
 
 const headers = computed(() => {
-  const base = [
+  const baseHeaders = [
     { title: "Producto", key: "product", sortable: false },
     { title: "% Depósito", key: "deposit", sortable: false },
-    { title: "Depósito", key: "deposit", sortable: false },
     { title: "Monto a financiar", key: "rest", sortable: false },
   ];
-
-  const dynamic = quotes.value.map((q, i) => ({
-    title: `${q.quantity} cuotas (${q.percentage}%)`,
-    key: `quotes_${i}`,
+  const dynamicHeaders = quotes.value.map((quote, index) => ({
+    title: `${quote.quantity} cuotas (${quote.percentage}%)`,
+    key: `quotes_${index}`,
     sortable: false,
   }));
-
-  return [...base, ...dynamic];
+  return [...baseHeaders, ...dynamicHeaders];
 });
-
-const source = ref("");
-const { copy } = useClipboard({ source });
 </script>
 
 <style scoped>
