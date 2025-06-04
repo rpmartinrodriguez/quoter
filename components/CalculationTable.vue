@@ -67,11 +67,22 @@ const isSelectedValid = computed(() =>
   Array.isArray(selected.value) && selected.value.length > 0
 );
 
+// ▶️ VERIFICACIÓN DE CARGA DE CUOTAS
+watchEffect(() => {
+  console.log("🧪 QUOTES CARGADAS:", quotes.value);
+  if (quotes.value.length === 0) {
+    alert("⚠️ No se cargaron cuotas. Revisá Appwrite o la conexión.");
+  }
+});
+
+// ▶️ GENERACIÓN DE CÁLCULOS
 watchEffect(() => {
   if (!isSelectedValid.value) {
     parsedProducts.value = [];
     return;
   }
+
+  console.log("🧮 Generando cálculos con cuotas:", quotes.value);
 
   parsedProducts.value = selected.value.map((product) => {
     const price = product.price || 0;
@@ -113,12 +124,19 @@ const getRestTable = (price: number): string => {
 };
 
 const getQuotesTables = (price: number): string[] => {
+  console.log("📊 Procesando cuotas individuales", quotes.value);
+
   return quotes.value.map((quote) => {
     let html = "<table class='table'><tbody>";
     deposits.value.forEach((dep) => {
       const deposit = (price * dep.percentage) / 100;
       const toFinance = price - deposit;
       const amount = (toFinance * quote.percentage) / 100;
+
+      console.log(
+        `💰 Cuota: ${quote.quantity} cuotas, ${quote.percentage}% => ${amount}`
+      );
+
       html += `<tr>
         <td class="px-1 text-center">${formatAsArs(Math.round(amount))}</td>
       </tr>`;
