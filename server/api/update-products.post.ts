@@ -27,6 +27,7 @@ export default defineEventHandler(async (event) => {
   const fileBody = filesBody[0];
   const isDev = process.env.NODE_ENV !== "production";
 
+  // Solo guardar el archivo si estamos en desarrollo
   if (isDev) {
     const dir = "./uploads";
     if (!existsSync(dir)) mkdirSync(dir);
@@ -67,25 +68,27 @@ export default defineEventHandler(async (event) => {
       [Query.limit(500)]
     );
 
-    for (const doc of existing.documents) {
-      await databases.deleteDocument(
+    const deletePromises = existing.documents.map((doc) =>
+      databases.deleteDocument(
         config.public.database,
         config.public.cProducts,
         doc.$id
-      );
-    }
+      )
+    );
+    await Promise.all(deletePromises);
 
-    // Insertar nuevos productos
-    for (const product of products) {
-      await databases.createDocument(
+    // Insertar nuevos productos en paralelo (solución al error 504)
+    const insertPromises = products.map((product) =>
+      databases.createDocument(
         config.public.database,
         config.public.cProducts,
         ID.unique(),
         product
-      );
-    }
+      )
+    );
+    await Promise.all(insertPromises);
 
-    // Limpieza de archivos locales en desarrollo
+    // Limpieza de archivos locales (solo en dev)
     if (isDev) {
       readdir("./uploads", (err, files) => {
         if (err) return console.error("🛑 Error al leer /uploads:", err);
