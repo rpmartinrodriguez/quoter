@@ -1,25 +1,24 @@
 <template>
   <form>
     <div class="d-flex align-center ga-5">
-      <!-- Quantity text field -->
       <v-text-field
         :label="qLabel"
-        v-model="quantity"
+        v-model.number="quantity"
+        type="number"
         variant="outlined"
         density="compact"
         hide-details
       ></v-text-field>
 
-      <!-- Percentage text field -->
       <v-text-field
         :label="pLabel"
-        v-model="percentage"
+        v-model.number="percentage"
+        type="number"
         variant="outlined"
         density="compact"
         hide-details
       ></v-text-field>
 
-      <!-- Create/Update Quote -->
       <v-btn
         class="px-2"
         variant="tonal"
@@ -33,7 +32,6 @@
         <v-icon>mdi-check</v-icon>
       </v-btn>
 
-      <!-- Delete Quote -->
       <v-btn
         v-if="state"
         class="px-2"
@@ -45,7 +43,6 @@
         <v-icon>mdi-delete</v-icon>
       </v-btn>
 
-      <!-- Clear Form -->
       <v-btn
         v-if="showClear"
         class="px-2"
@@ -54,7 +51,7 @@
         @click="clearForm"
       >
         <v-tooltip activator="parent" location="bottom">
-          Limpiar campo
+          Limpiar campos
         </v-tooltip>
         <v-icon>mdi-broom</v-icon>
       </v-btn>
@@ -63,7 +60,7 @@
 </template>
 
 <script lang="ts" setup>
-// ✅ Definimos `Quote` si no viene de una interfaz global
+// Asumiendo que esta interfaz podría moverse a un archivo global de tipos
 interface Quote {
   $id: string;
   quantity: number;
@@ -74,55 +71,55 @@ interface IQuoteForm {
   qLabel?: string;
   pLabel?: string;
   state?: Quote;
-  showClear: boolean;
+  showClear?: boolean;
 }
 
-const { qLabel, pLabel, state, showClear } = defineProps<IQuoteForm>();
+const { qLabel = "Cantidad", pLabel = "Porcentaje", state, showClear = true } = defineProps<IQuoteForm>();
 const { createQuote, updateQuote, deleteQuote } = useQuote();
 
-// ✅ Inicialización segura
-const quantity = ref<string>("");
-const percentage = ref<string>("");
+// --- LÓGICA CORREGIDA ---
 
-// ✅ Validación robusta
+// Estado interno: usamos `number | null` para manejar campos vacíos.
+const quantity = ref<number | null>(null);
+const percentage = ref<number | null>(null);
+
+// Validación simplificada y robusta para números.
 const invalidQuote = computed(() => {
-  const q = parseFloat(quantity.value.trim());
-  const p = parseFloat(percentage.value.trim());
-  return (
-    isNaN(q) || !isFinite(q) || q <= 0 ||
-    isNaN(p) || !isFinite(p) || p <= 0
-  );
+  const q = quantity.value;
+  const p = percentage.value;
+  // Un campo es inválido si está vacío (null) o si no es un número positivo.
+  return q === null || q <= 0 || p === null || p <= 0;
 });
 
 const saveTooltip = computed(() => (state ? "Actualizar" : "Guardar"));
 
-// ✅ Manejo seguro del click
+// Manejo del guardado: ahora envía tipos numéricos.
 const handleSaveClick = async () => {
-  const q = quantity.value.trim();
-  const p = percentage.value.trim();
+  if (invalidQuote.value) return;
 
-  if (!q || !p || invalidQuote.value) return;
+  // El "!" asegura a TypeScript que los valores no son null aquí, gracias a la validación.
+  const q = quantity.value!;
+  const p = percentage.value!;
 
   if (state) {
     await updateQuote(state.$id!, q, p);
   } else {
     await createQuote(q, p);
-    quantity.value = "";
-    percentage.value = "";
+    clearForm();
   }
 };
 
-// ✅ Limpiar campos
+// Limpiar formulario: asigna null a los campos.
 const clearForm = () => {
-  quantity.value = "";
-  percentage.value = "";
+  quantity.value = null;
+  percentage.value = null;
 };
 
-// ✅ Precarga al montar
+// Precarga de datos: asigna directamente los números del estado.
 onMounted(() => {
   if (state) {
-    quantity.value = String(state.quantity ?? "");
-    percentage.value = String(state.percentage ?? "");
+    quantity.value = state.quantity;
+    percentage.value = state.percentage;
   }
 });
 </script>
