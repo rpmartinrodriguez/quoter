@@ -1,16 +1,16 @@
 import "@mdi/font/css/materialdesignicons.css";
 import "vuetify/styles";
 import { createVuetify } from "vuetify";
-import { aliases, mdi } from "vuetify/iconsets/mdi"; // Importamos los aliases para los íconos
+import { aliases, mdi } from "vuetify/iconsets/mdi";
 
-// ✅ 1. Definimos nuestra paleta de colores y tema moderno
+// Definimos nuestra paleta de colores y tema moderno
 const miTemaModerno = {
-  dark: false, // Tema claro
+  dark: false,
   colors: {
-    background: '#F5F7FA', // Un gris azulado muy claro para el fondo general
-    surface: '#FFFFFF',    // El color de la superficie de las tarjetas, etc.
-    primary: '#1976D2',    // Azul principal para botones y acentos
-    secondary: '#424242',  // Un gris oscuro para elementos secundarios
+    background: '#F5F7FA',
+    surface: '#FFFFFF',
+    primary: '#1976D2',
+    secondary: '#424242',
     error: '#B00020',
     info: '#2196F3',
     success: '#4CAF50',
@@ -20,7 +20,7 @@ const miTemaModerno = {
 
 export default defineNuxtPlugin((nuxtApp) => {
   const vuetify = createVuetify({
-    // Mantenemos y completamos tu configuración de íconos
+    // Configuración de los íconos
     icons: {
       defaultSet: "mdi",
       aliases,
@@ -28,35 +28,19 @@ export default defineNuxtPlugin((nuxtApp) => {
         mdi,
       },
     },
-
-    // ✅ 2. Aplicamos nuestro tema personalizado
+    // Le inyectamos directamente el tema y los defaults
     theme: {
       defaultTheme: 'miTemaModerno',
       themes: {
         miTemaModerno,
       },
     },
-
-    // ✅ 3. Definimos estilos por defecto para todos los componentes
     defaults: {
-      VCard: {
-        elevation: 2,
-        rounded: 'lg', // Bordes más redondeados para las tarjetas
-      },
-      VBtn: {
-        rounded: 'lg', // Bordes redondeados para los botones
-      },
-      VTextField: {
-        variant: 'outlined',
-        density: 'compact',
-        rounded: 'lg',
-      },
-      VAlert: {
-        rounded: 'lg',
-      },
-      VChip: {
-        rounded: 'xl', // Chips bien redondeados
-      }
+      VCard: { elevation: 2, rounded: 'lg' },
+      VBtn: { rounded: 'lg' },
+      VTextField: { variant: 'outlined', density: 'compact', rounded: 'lg' },
+      VAlert: { rounded: 'lg' },
+      VChip: { rounded: 'xl' }
     }
   });
 
