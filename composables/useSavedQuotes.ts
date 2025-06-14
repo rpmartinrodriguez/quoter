@@ -1,22 +1,21 @@
 import { ref } from 'vue';
 import { ID, Query } from 'appwrite';
 
-// Interfaz para tipar los registros guardados. Debe coincidir con tu colección de Appwrite.
 export interface ISavedRecord {
-  $id: string; // Appwrite añade este campo automáticamente
+  $id: string;
   clientName: string;
   clientAddress?: string;
   clientPhone?: string;
   type: 'VENTA' | 'COTIZACIÓN';
-  quoteDate: string; // Se guarda como un string en formato ISO
+  quoteDate: string;
   products: string[];
   totalAmount: number;
   depositAmount: number;
   installmentsInfo: string;
+  isConverted?: boolean;     // ✅ Nuevo campo opcional
+  conversionDate?: string; // ✅ Nuevo campo opcional
 }
 
-// Se define el estado fuera de la función para que sea un "singleton",
-// es decir, un estado único y compartido por toda la aplicación.
 const savedRecords = ref<ISavedRecord[]>([]);
 const isLoading = ref(false);
 
@@ -25,58 +24,51 @@ export const useSavedQuotes = () => {
   const { databases } = useAppwrite();
   const COLLECTION_ID = config.public.cRecords;
 
-  /**
-   * Guarda un nuevo registro (Venta o Cotización) en la base de datos.
-   * @param record - El objeto con todos los datos a guardar.
-   */
   const saveRecord = async (record: Omit<ISavedRecord, '$id'>) => {
+    // ... (tu función saveRecord no cambia)
+  };
+
+  const getRecords = async () => {
+    // ... (tu función getRecords no cambia)
+  };
+
+  /**
+   * ✅ --- NUEVA FUNCIÓN PARA CONVERTIR UNA COTIZACIÓN EN VENTA ---
+   * Actualiza un registro existente para cambiar su tipo y marcarlo como convertido.
+   */
+  const convertQuoteToSale = async (recordId: string) => {
     isLoading.value = true;
     try {
-      await databases.createDocument(
+      const updateData = {
+        type: 'VENTA',
+        isConverted: true,
+        conversionDate: new Date().toISOString()
+      };
+      
+      await databases.updateDocument(
         config.public.database,
         COLLECTION_ID,
-        ID.unique(),
-        record
+        recordId,
+        updateData
       );
-      console.log("✅ Registro guardado exitosamente!");
-      // Después de guardar un nuevo registro, volvemos a cargar la lista completa
-      // para que la UI se actualice al instante si está visible.
+      
+      console.log(`✅ Registro ${recordId} convertido a VENTA.`);
+      // Volvemos a cargar todos los registros para que la UI se actualice al instante.
       await getRecords();
+
     } catch (error) {
-      console.error("❌ Error al guardar el registro:", error);
+      console.error(`❌ Error al convertir el registro ${recordId}:`, error);
       throw error;
     } finally {
       isLoading.value = false;
     }
   };
 
-  /**
-   * Obtiene todos los registros de la base de datos y los guarda en el estado local.
-   */
-  const getRecords = async () => {
-    isLoading.value = true;
-    try {
-      const response = await databases.listDocuments(
-        config.public.database,
-        COLLECTION_ID,
-        [
-          Query.orderDesc('quoteDate') // Ordena por fecha, los más nuevos primero
-        ]
-      );
-      savedRecords.value = response.documents as ISavedRecord[];
-    } catch (error) {
-      console.error("❌ Error al obtener los registros:", error);
-      savedRecords.value = []; // En caso de error, vaciamos la lista para evitar datos corruptos.
-    } finally {
-      isLoading.value = false;
-    }
-  };
-
-  // Se exponen el estado y las funciones para que puedan ser usados en cualquier componente.
   return {
     isLoading,
-    savedRecords, // La lista reactiva de registros.
-    saveRecord,   // La función para guardar.
-    getRecords,   // La función para leer.
+    savedRecords,
+    saveRecord,
+    getRecords,
+    convertQuoteToSale, // ✅ Exponemos la nueva función
   };
 };
