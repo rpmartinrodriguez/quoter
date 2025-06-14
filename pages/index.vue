@@ -50,7 +50,6 @@ watch(selectedPs, (newVal) => {
 // --- PROPIEDADES COMPUTADAS ---
 const noneSelected = computed(() => selectedPs.value.length === 0);
 
-// ✅ Se actualiza 'total' para que sea reactivo
 const total = computed(() =>
   selectedPs.value.reduce((sum, prod) => sum + (prod?.price || 0), 0)
 );
@@ -80,9 +79,7 @@ const toggleSelect = (i: Product) => {
   }
 };
 
-// ✅ --- FUNCIÓN PARA MANEJAR LA DESELECCIÓN DESDE EL HIJO --- ✅
 const handleDeselect = (productToDeselect: Product) => {
-  // Filtramos el array, quitando el producto que coincida con el ID
   selectedPs.value = selectedPs.value.filter(
     (p) => p.$id !== productToDeselect.$id
   );
@@ -108,22 +105,15 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
 
 <template>
   <v-container fluid>
-    <v-alert v-if="configOk" type="success" variant="tonal" class="mb-2 text-center">
-      ✅ Configuración cargada correctamente
+    <v-alert v-if="!configOk" type="error" variant="outlined" class="mb-2 text-center">
+      ⚠️ Error de configuración: Verificá el archivo .env y la conexión.
     </v-alert>
-    <v-alert v-else type="error" variant="outlined" class="mb-2 text-center">
-      ⚠️ Error de configuración: Verificá el archivo .env
-    </v-alert>
-    <v-alert v-if="quotesOk" type="success" variant="tonal" class="mb-2 text-center">
-      ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones)
-    </v-alert>
-    <v-alert v-else type="error" variant="outlined" class="mb-2 text-center">
+
+    <v-alert v-if="!quotesOk" type="error" variant="outlined" class="mb-2 text-center">
       ⚠️ No se cargaron las cuotas. Revisar Appwrite o IDs en .env
     </v-alert>
-    <v-alert v-if="depositsOk" type="success" variant="tonal" class="mb-4 text-center">
-      ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
-    </v-alert>
-    <v-alert v-else type="error" variant="outlined" class="mb-4 text-center">
+
+    <v-alert v-if="!depositsOk" type="error" variant="outlined" class="mb-4 text-center">
       ⚠️ No se cargaron los depósitos. Revisar Appwrite o IDs en .env
     </v-alert>
 
@@ -230,7 +220,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
           </v-btn>
         </v-toolbar>
         <v-card-text>
-           <CustomCalculation
+          <CustomCalculation
             :total="total"
             :products="selectedPs"
             @deselect-product="handleDeselect"
@@ -248,7 +238,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
           <v-toolbar-title>Cálculo Personalizado (Sobrescribir)</v-toolbar-title>
         </v-toolbar>
         <v-card-text>
-           <CustomCalculation
+          <CustomCalculation
             :total="total"
             :products="selectedPs"
             @deselect-product="handleDeselect"
