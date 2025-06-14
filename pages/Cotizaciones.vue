@@ -73,14 +73,23 @@
               Convertir a Venta
             </v-btn>
           </div>
+          
           <div v-else-if="item.isConverted">
-             <v-chip color="grey" size="small" label variant="outlined">
-                <v-icon start>mdi-check-decagram</v-icon>
-                Convertida
-             </v-chip>
+            <v-tooltip location="top">
+              <template v-slot:activator="{ props: tooltipProps }">
+                <v-chip v-bind="tooltipProps" color="grey" size="small" label variant="outlined">
+                  <v-icon start>mdi-check-decagram</v-icon>
+                  Convertida
+                </v-chip>
+              </template>
+              <span v-if="item.conversionDate">
+                Convertida el: {{ new Date(item.conversionDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}
+              </span>
+            </v-tooltip>
           </div>
         </template>
-        </v-data-table>
+        
+      </v-data-table>
     </v-card-text>
   </v-card>
 </template>
@@ -89,11 +98,11 @@
 import { ref, computed } from 'vue';
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
 
-// ✅ Usamos TODAS las funciones necesarias del composable
+// Usamos nuestros composables
 const { getRecords, savedRecords, isLoading, convertQuoteToSale } = useSavedQuotes();
 const { formatAsArs } = useFormatters();
 
-// ✅ Se restaura el estado para manejar la carga de la conversión
+// Estado para manejar la carga de la conversión
 const isConverting = ref(false);
 const selectedRecordId = ref<string | null>(null);
 
@@ -122,7 +131,7 @@ const totalQuotes = computed(() =>
     .reduce((sum, record) => sum + record.totalAmount, 0)
 );
 
-// ✅ Se restaura la función para manejar el clic del botón de conversión
+// Función para manejar el clic del botón de conversión
 const handleConversion = async (record: ISavedRecord) => {
   selectedRecordId.value = record.$id;
   isConverting.value = true;
@@ -137,6 +146,5 @@ const handleConversion = async (record: ISavedRecord) => {
   }
 };
 
-// El hook onMounted se eliminó correctamente en el paso anterior.
-// El composable se encarga de la carga inicial.
+// El composable se encarga de la carga inicial de los datos
 </script>
