@@ -1,37 +1,31 @@
-// https://nuxt.com/docs/api/configuration/nuxt-config
-import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
-
 export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   devtools: { enabled: false },
 
-  // Tu configuración de Vuetify actual.
+  // El build ahora es manejado por el módulo de Vuetify
   build: {
     transpile: ["vuetify"],
   },
+  
+  // Se usa el módulo oficial de Vuetify
   modules: [
-    (_options, nuxt) => {
-      nuxt.hooks.hook("vite:extendConfig", (config) => {
-        // @ts-expect-error
-        config.plugins.push(vuetify({ autoImport: true }));
-      });
-    },
+    '@nuxtjs/vuetify',
   ],
-  vite: {
-    vue: {
-      template: {
-        transformAssetUrls,
-      },
-    },
+  vuetify: {
+    useVuetifyLabs: true, 
+    // La configuración detallada de colores y estilos ahora vive en nuestro plugin
+    // para mantener este archivo más limpio.
   },
 
-  // --- CONFIGURACIÓN DE RUNTIME COMPLETA Y CORREGIDA ---
+  // Cargamos nuestro archivo de estilos globales para toda la app
+  css: ['~/assets/css/main.css'],
+  
+  // La configuración de runtimeConfig se mantiene como la corregimos
   runtimeConfig: {
-    // Las claves aquí SOLO son accesibles en el entorno del servidor.
-    // Esto es para proteger tu API Key.
+    // Clave secreta, solo accesible en el servidor
     projectApiKey: process.env.PROJECT_API_KEY,
 
-    // Las claves aquí son seguras para exponer en el navegador.
+    // Claves públicas, seguras para el navegador
     public: {
       endpoint: process.env.ENDPOINT,
       project: process.env.PROJECT,
@@ -40,11 +34,11 @@ export default defineNuxtConfig({
       cDeposits: process.env.C_DEPOSITS,
       cQuotes: process.env.C_QUOTES,
       cActionPasswords: process.env.C_ACTION_PASSWORDS,
-      cRecords: process.env.C_RECORDS, // Leemos la nueva variable para los registros guardados
+      cRecords: process.env.C_RECORDS,
     },
   },
 
-  // --- BLOQUE PARA AÑADIR LA TIPOGRAFÍA MODERNA "Inter" ---
+  // Se mantiene el bloque para importar la tipografía "Inter"
   app: {
     head: {
       link: [
