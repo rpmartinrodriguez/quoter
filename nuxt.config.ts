@@ -5,7 +5,7 @@ export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   devtools: { enabled: false },
 
-  // ✅ Volvemos a la configuración manual de build y modules que sabemos que funciona
+  // Tu configuración de Vuetify actual.
   build: {
     transpile: ["vuetify"],
   },
@@ -25,12 +25,13 @@ export default defineNuxtConfig({
     },
   },
 
-  // Mantenemos nuestro archivo de estilos globales
-  css: ['~/assets/css/main.css'],
-  
-  // Mantenemos toda la configuración de runtime y la tipografía
+  // --- CONFIGURACIÓN DE RUNTIME COMPLETA Y CORREGIDA ---
   runtimeConfig: {
+    // Las claves aquí SOLO son accesibles en el entorno del servidor.
+    // Esto es para proteger tu API Key.
     projectApiKey: process.env.PROJECT_API_KEY,
+
+    // Las claves aquí son seguras para exponer en el navegador.
     public: {
       endpoint: process.env.ENDPOINT,
       project: process.env.PROJECT,
@@ -39,9 +40,11 @@ export default defineNuxtConfig({
       cDeposits: process.env.C_DEPOSITS,
       cQuotes: process.env.C_QUOTES,
       cActionPasswords: process.env.C_ACTION_PASSWORDS,
-      cRecords: process.env.C_RECORDS,
+      cRecords: process.env.C_RECORDS, // Leemos la nueva variable para los registros guardados
     },
   },
+
+  // --- BLOQUE PARA AÑADIR LA TIPOGRAFÍA MODERNA "Inter" ---
   app: {
     head: {
       link: [
