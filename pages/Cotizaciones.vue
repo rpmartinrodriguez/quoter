@@ -31,7 +31,13 @@
         no-data-text="No hay registros guardados todavía."
       >
         <template v-slot:item.quoteDate="{ item }">
-          <span>{{ formatSimpleDate(item.quoteDate) }}</span>
+          <span>
+            {{ new Date(item.quoteDate).toLocaleDateString('es-AR', {
+                day: '2-digit', 
+                month: '2-digit', 
+                year: 'numeric' 
+            }) }}
+          </span>
         </template>
 
         <template v-slot:item.clientName="{ item }">
@@ -59,7 +65,8 @@
         <template v-slot:item.products="{ item }">
           <span>{{ item.products.join(', ') }}</span>
         </template>
-        </v-data-table>
+
+      </v-data-table>
     </v-card-text>
   </v-card>
 </template>
@@ -69,7 +76,8 @@ import { computed, onMounted } from 'vue';
 
 // Usamos nuestros composables
 const { getRecords, savedRecords, isLoading } = useSavedQuotes();
-const { formatAsArs, formatSimpleDate } = useFormatters();
+// Ya no necesitamos `formatSimpleDate`, lo quitamos para mantener el código limpio
+const { formatAsArs } = useFormatters();
 
 // Encabezados para la tabla de datos
 const headers = [
