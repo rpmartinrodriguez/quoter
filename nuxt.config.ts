@@ -1,31 +1,36 @@
+// https://nuxt.com/docs/api/configuration/nuxt-config
+import vuetify, { transformAssetUrls } from "vite-plugin-vuetify";
+
 export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   devtools: { enabled: false },
 
-  // El build ahora es manejado por el módulo de Vuetify
+  // ✅ Volvemos a la configuración manual de build y modules que sabemos que funciona
   build: {
     transpile: ["vuetify"],
   },
-  
-  // Se usa el módulo oficial de Vuetify
   modules: [
-    '@nuxtjs/vuetify',
+    (_options, nuxt) => {
+      nuxt.hooks.hook("vite:extendConfig", (config) => {
+        // @ts-expect-error
+        config.plugins.push(vuetify({ autoImport: true }));
+      });
+    },
   ],
-  vuetify: {
-    useVuetifyLabs: true, 
-    // La configuración detallada de colores y estilos ahora vive en nuestro plugin
-    // para mantener este archivo más limpio.
+  vite: {
+    vue: {
+      template: {
+        transformAssetUrls,
+      },
+    },
   },
 
-  // Cargamos nuestro archivo de estilos globales para toda la app
+  // Mantenemos nuestro archivo de estilos globales
   css: ['~/assets/css/main.css'],
   
-  // La configuración de runtimeConfig se mantiene como la corregimos
+  // Mantenemos toda la configuración de runtime y la tipografía
   runtimeConfig: {
-    // Clave secreta, solo accesible en el servidor
     projectApiKey: process.env.PROJECT_API_KEY,
-
-    // Claves públicas, seguras para el navegador
     public: {
       endpoint: process.env.ENDPOINT,
       project: process.env.PROJECT,
@@ -37,8 +42,6 @@ export default defineNuxtConfig({
       cRecords: process.env.C_RECORDS,
     },
   },
-
-  // Se mantiene el bloque para importar la tipografía "Inter"
   app: {
     head: {
       link: [
