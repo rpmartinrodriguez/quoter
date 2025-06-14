@@ -13,6 +13,13 @@
           title="Calculadora"
           to="/"
         ></v-list-item>
+        
+        <v-list-item
+          prepend-icon="mdi-chart-bar"
+          title="Mi Estadística"
+          to="/estadisticas"
+        ></v-list-item>
+
         <v-list-item
           prepend-icon="mdi-format-list-checks"
           title="Cotizaciones"
@@ -37,16 +44,14 @@
 <script lang="ts" setup>
 import { ref } from 'vue';
 
-// ✅ 4. AÑADIMOS LA LÓGICA PARA CONTROLAR EL MENÚ
+// Estado para controlar si el panel lateral está abierto o cerrado
 const drawer = ref(false);
 </script>
 
 <style>
-/* ✅ 5. USAMOS Y MEJORAMOS TUS ESTILOS */
+/* Estilos globales */
 .main-content {
   min-height: 100vh;
-  /* Usamos tu color de fondo original, es una buena elección */
   background-color: #f5f5f5;
 }
 </style>
-
