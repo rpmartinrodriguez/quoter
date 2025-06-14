@@ -5,12 +5,7 @@ export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   devtools: { enabled: false },
 
-  // ✅ FORMA RECOMENDADA DE INTEGRAR VUETIFY
-  // build: { transpile: ["vuetify"] }, // El módulo oficial puede que ya no necesite esto
-  // modules: ['@nuxtjs/vuetify'], 
-  // vuetify: { ... opciones si las necesitas ... }
-  // NOTA: Por ahora, mantendré tu configuración original para no romper nada,
-  // pero te recomiendo investigar el módulo `@nuxtjs/vuetify`.
+  // Tu configuración de Vuetify actual.
   build: {
     transpile: ["vuetify"],
   },
@@ -30,12 +25,13 @@ export default defineNuxtConfig({
     },
   },
 
-  // ✅ --- CONFIGURACIÓN DE RUNTIME CORREGIDA ---
+  // --- CONFIGURACIÓN DE RUNTIME COMPLETA Y CORREGIDA ---
   runtimeConfig: {
-    // Estas claves SOLO son accesibles en el servidor.
+    // Las claves aquí SOLO son accesibles en el entorno del servidor.
+    // Esto es para proteger tu API Key.
     projectApiKey: process.env.PROJECT_API_KEY,
 
-    // Estas claves son seguras para exponer en el navegador.
+    // Las claves aquí son seguras para exponer en el navegador.
     public: {
       endpoint: process.env.ENDPOINT,
       project: process.env.PROJECT,
@@ -44,10 +40,11 @@ export default defineNuxtConfig({
       cDeposits: process.env.C_DEPOSITS,
       cQuotes: process.env.C_QUOTES,
       cActionPasswords: process.env.C_ACTION_PASSWORDS,
+      cRecords: process.env.C_RECORDS, // Leemos la nueva variable para los registros guardados
     },
   },
 
-  // ✅ --- BLOQUE PARA AÑADIR LA TIPOGRAFÍA MODERNA ---
+  // --- BLOQUE PARA AÑADIR LA TIPOGRAFÍA MODERNA "Inter" ---
   app: {
     head: {
       link: [
