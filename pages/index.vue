@@ -22,7 +22,7 @@ interface Product {
   detail: string;
   composition: string;
   price: number;
-  color?: string; // Asumiendo que `color` es opcional y de tipo string
+  color?: string;
 }
 
 // --- Composable y Estado ---
@@ -43,13 +43,9 @@ const dialogs = reactive<Dialog>({
 const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
-// ✅ --- CORRECCIÓN APLICADA AQUÍ ---
-// Se elimina el parámetro "get" para usar la carga automática y robusta del composable.
 const { list: products, selected } = useProducts(); 
 const selectedPs = ref<Product[]>([]);
 
-// Sincronización del estado local de selección (`selectedPs`) al estado global (`selected`).
-// Esto es correcto y permite que otros componentes reaccionen a los cambios.
 watch(selectedPs, (newVal) => {
   selected.value = [...newVal];
 });
@@ -63,6 +59,11 @@ const productsDetails = computed(() =>
     .map((p: Product) => p.detail)
 );
 
+// ✅ `total` ahora es un `computed` para ser siempre reactivo y correcto.
+const total = computed(() =>
+  selectedPs.value.reduce((sum, prod) => sum + (prod?.price || 0), 0)
+);
+
 // Encabezados de la tabla de productos.
 const headers = ref([
   { align: "start", key: "detail", title: "Detalle" },
@@ -71,16 +72,11 @@ const headers = ref([
 ]);
 
 // --- Métodos ---
-const total = ref<number>(0);
 const newCustomCalculation = () => {
-  total.value = selectedPs.value.reduce(
-    (sum, prod) => sum + (prod?.price || 0),
-    0
-  );
+  // La línea `total.value = ...` se elimina porque `total` ya es un computed.
   dialogs.customCalculation = true;
 };
 
-// Lógica para manejar la selección de filas en la tabla.
 const isSelected = (i: Product) =>
   !!i?.$id && selectedPs.value.some((item) => item?.$id === i.$id);
 
@@ -119,14 +115,12 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
     <v-alert v-else type="error" variant="outlined" class="mb-2 text-center">
       ⚠️ Error de configuración: Verificá el archivo .env
     </v-alert>
-
     <v-alert v-if="quotesOk" type="success" variant="tonal" class="mb-2 text-center">
       ✅ Cuotas cargadas correctamente ({{ quotes.length }} opciones)
     </v-alert>
     <v-alert v-else type="error" variant="outlined" class="mb-2 text-center">
       ⚠️ No se cargaron las cuotas. Revisar Appwrite o IDs en .env
     </v-alert>
-
     <v-alert v-if="depositsOk" type="success" variant="tonal" class="mb-4 text-center">
       ✅ Depósitos cargados correctamente ({{ deposits.length }} opciones)
     </v-alert>
@@ -231,31 +225,20 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
 
       <v-col cols="8" class="d-none d-md-flex">
         <v-card flat>
-          <v-card-title class="d-flex items-center justify-space-between">
+          <v-card-title>
             <span>Cálculos</span>
-            <v-btn
-              v-if="!noneSelected"
-              class="px-2"
-              variant="text"
-              density="compact"
-              icon
-              @click="newCustomCalculation"
-            >
-              <v-tooltip activator="parent" location="bottom">Cálculo personalizado</v-tooltip>
-              <v-icon>mdi-cash-edit</v-icon>
-            </v-btn>
           </v-card-title>
-          <v-card-text>
+          <v-card-text class="pt-4">
             <div v-if="noneSelected" class="text-center">
-              <p>Escoja uno o varios productos para cotizar</p>
+              <p>Seleccioná uno o varios productos para cotizar</p>
             </div>
             <div v-else>
-              <CalculationTable />
+              <CustomCalculation :total="total" :products="productsDetails" />
             </div>
           </v-card-text>
         </v-card>
       </v-col>
-    </v-row>
+      </v-row>
 
     <v-dialog v-model="dialogs.calculation" transition="dialog-bottom-transition" fullscreen>
       <v-card>
@@ -269,7 +252,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
           </v-btn>
         </v-toolbar>
         <v-card-text>
-          <CalculationTable />
+          <CustomCalculation :total="total" :products="productsDetails" />
         </v-card-text>
       </v-card>
     </v-dialog>
@@ -285,7 +268,7 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
       <v-card>
         <v-toolbar>
           <v-btn icon="mdi-close" @click="dialogs.customCalculation = false"></v-btn>
-          <v-toolbar-title>Depósito personalizado</v-toolbar-title>
+          <v-toolbar-title>Cálculo Personalizado (Sobrescribir)</v-toolbar-title>
         </v-toolbar>
         <v-card-text>
           <CustomCalculation :total="total" :products="productsDetails" />
