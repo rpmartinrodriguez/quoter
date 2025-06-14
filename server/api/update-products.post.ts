@@ -4,6 +4,13 @@ import readXlsxFile from "read-excel-file/node";
 import path from "path";
 import { Client, Databases, ID, Query } from "node-appwrite";
 
+// Interfaz para el tipado de productos
+interface Product {
+  detail: string;
+  composition: string;
+  price: number;
+}
+
 export default defineEventHandler(async (event) => {
   const config = useRuntimeConfig();
 
@@ -11,7 +18,8 @@ export default defineEventHandler(async (event) => {
   const client = new Client()
     .setEndpoint(config.public.endpoint)
     .setProject(config.public.project)
-    .setKey(config.public.projectApiKey);
+    // ✅ CORRECCIÓN: Se lee la clave API desde la sección privada del runtimeConfig
+    .setKey(config.projectApiKey);
 
   const databases = new Databases(client);
 
@@ -51,8 +59,7 @@ export default defineEventHandler(async (event) => {
 
     for (let i = 1; i < rows.length; i++) {
       const [detail, composition, price] = rows[i];
-
-      if (!detail || !composition || isNaN(price)) continue;
+      if (!detail || !composition || !price || isNaN(Number(price))) continue;
 
       products.push({
         detail: detail.toString(),
@@ -77,7 +84,7 @@ export default defineEventHandler(async (event) => {
     );
     await Promise.all(deletePromises);
 
-    // Insertar nuevos productos en paralelo (solución al error 504)
+    // Insertar nuevos productos en paralelo
     const insertPromises = products.map((product) =>
       databases.createDocument(
         config.public.database,
@@ -105,7 +112,7 @@ export default defineEventHandler(async (event) => {
     console.error("🛑 Error al procesar Excel:", error);
     throw createError({
       statusCode: 500,
-      statusMessage: error?.message || "Error interno",
+      statusMessage: error?.message || "Error interno del servidor",
     });
   }
 });
