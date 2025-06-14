@@ -1,5 +1,3 @@
-// composables/useSavedQuotes.ts
-
 import { ref } from 'vue';
 import { ID } from 'appwrite';
 
@@ -19,31 +17,42 @@ export interface ISavedRecord {
 export const useSavedQuotes = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  const COLLECTION_ID = config.public.cRecords; // Necesitaremos añadir esta variable a .env y nuxt.config
+  
+  // Leemos el ID de la colección de registros desde la configuración de Nuxt
+  const COLLECTION_ID = config.public.cRecords;
 
   const isLoading = ref(false);
 
   /**
    * Guarda un nuevo registro (Venta o Cotización) en la base de datos.
+   * Incluye alertas para depuración en dispositivos móviles.
    * @param record - El objeto con todos los datos a guardar.
    */
   const saveRecord = async (record: ISavedRecord) => {
     isLoading.value = true;
     try {
+      // Intentamos crear el documento en la colección de Appwrite
       await databases.createDocument(
         config.public.database,
         COLLECTION_ID,
         ID.unique(),
         record
       );
-      // Opcional: podrías mostrar una notificación de éxito aquí
+
       console.log("✅ Registro guardado exitosamente!");
-    } catch (error) {
+      // Si todo sale bien, mostramos una alerta de éxito
+      alert("¡ÉXITO! El registro parece haberse guardado. Por favor, revisá tu base de datos en Appwrite para confirmar.");
+
+    } catch (error: any) { // Añadimos ': any' para poder acceder a las propiedades del error
       console.error("❌ Error al guardar el registro:", error);
-      // Opcional: podrías mostrar una notificación de error aquí
-      throw error; // Propagamos el error por si la UI quiere manejarlo
+      
+      // --- ¡ESTA ES LA ALERTA CLAVE PARA DIAGNOSTICAR! ---
+      // Si algo falla, nos mostrará el error exacto en pantalla.
+      alert(`ERROR AL GUARDAR:\n\n${error.message}`);
+      
+      throw error; // Mantenemos el error para que la consola también lo registre si es posible
     } finally {
-      isLoading.value = false;
+      isLoading.value = false; // Nos aseguramos de que el estado de carga se desactive siempre
     }
   };
   
