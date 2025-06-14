@@ -59,23 +59,45 @@
         <template v-slot:item.products="{ item }">
           <span>{{ item.products.join(', ') }}</span>
         </template>
+        
         <template v-slot:item.actions="{ item }">
-          </template>
-      </v-data-table>
+          <div v-if="item.type === 'COTIZACIÓN'">
+            <v-btn
+              color="success"
+              variant="tonal"
+              size="small"
+              @click="handleConversion(item)"
+              :loading="isConverting && selectedRecordId === item.$id"
+              :disabled="isConverting"
+            >
+              Convertir a Venta
+            </v-btn>
+          </div>
+          <div v-else-if="item.isConverted">
+             <v-chip color="grey" size="small" label variant="outlined">
+                <v-icon start>mdi-check-decagram</v-icon>
+                Convertida
+             </v-chip>
+          </div>
+        </template>
+        </v-data-table>
     </v-card-text>
   </v-card>
 </template>
 
 <script lang="ts" setup>
-// ✅ Ya no necesitamos `onMounted` aquí, por lo que el código es más simple.
-import { computed } from 'vue';
+import { ref, computed } from 'vue';
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
 
-// Usamos nuestros composables. `getRecords` se llama automáticamente desde el composable.
-const { savedRecords, isLoading } = useSavedQuotes();
+// ✅ Usamos TODAS las funciones necesarias del composable
+const { getRecords, savedRecords, isLoading, convertQuoteToSale } = useSavedQuotes();
 const { formatAsArs } = useFormatters();
 
-// Encabezados para la tabla de datos
+// ✅ Se restaura el estado para manejar la carga de la conversión
+const isConverting = ref(false);
+const selectedRecordId = ref<string | null>(null);
+
+// Encabezados para la tabla de datos, incluyendo la columna de Acciones
 const headers = [
   { title: 'Fecha', key: 'quoteDate', sortable: true },
   { title: 'Cliente', key: 'clientName', sortable: true },
@@ -83,7 +105,7 @@ const headers = [
   { title: 'Total', key: 'totalAmount', sortable: true, align: 'end' },
   { title: 'Depósito', key: 'depositAmount', sortable: true, align: 'end' },
   { title: 'Cuotas', key: 'installmentsInfo', sortable: false },
-  { title: 'Productos', key: 'products', sortable: false, width: '250px' },
+  { title: 'Productos', key: 'products', sortable: false, width: '200px' },
   { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },
 ];
 
@@ -100,5 +122,21 @@ const totalQuotes = computed(() =>
     .reduce((sum, record) => sum + record.totalAmount, 0)
 );
 
-// El hook onMounted se ha eliminado, ya que el composable ahora maneja la carga inicial.
+// ✅ Se restaura la función para manejar el clic del botón de conversión
+const handleConversion = async (record: ISavedRecord) => {
+  selectedRecordId.value = record.$id;
+  isConverting.value = true;
+  try {
+    await convertQuoteToSale(record.$id);
+  } catch (error) {
+    // Aquí podrías mostrar una alerta de error si falla la conversión
+    console.error("Fallo la conversión", error);
+  } finally {
+    isConverting.value = false;
+    selectedRecordId.value = null;
+  }
+};
+
+// El hook onMounted se eliminó correctamente en el paso anterior.
+// El composable se encarga de la carga inicial.
 </script>
