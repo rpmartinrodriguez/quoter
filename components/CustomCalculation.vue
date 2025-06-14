@@ -5,12 +5,26 @@
         <div v-if="props.products.length > 0" class="product-details-wrapper">
           <b class="product-list-title">Artículos Seleccionados:</b>
           <ul class="product-list">
-            <li v-for="(product, index) in props.products" :key="index">
-              {{ product }}
+            <li v-for="product in props.products" :key="product.$id">
+              <span>{{ product.detail }}</span>
+              <v-btn
+                variant="text"
+                density="compact"
+                icon
+                @click="handleDeselect(product)"
+                title="Quitar este producto"
+              >
+                <v-icon size="small" color="error">mdi-close-circle-outline</v-icon>
+              </v-btn>
             </li>
           </ul>
         </div>
-        <hr v-if="props.products.length > 0" class="divider">
+        
+        <div v-else class="product-details-wrapper">
+           <b class="product-list-title">Ningún artículo seleccionado</b>
+        </div>
+
+        <hr class="divider">
 
         <b>Precio Total:</b>
         <div class="mt-2 price-display">
@@ -96,28 +110,53 @@
 </template>
 
 <script lang="ts" setup>
-// El script no necesita cambios, solo el template y el style.
 import { ref, computed } from 'vue';
 import { useClipboard } from "@vueuse/core";
-// ... (el resto de tu script setup se mantiene igual) ...
+
 // --- PROPS E INTERFACES ---
+
+// ✅ Interfaz del producto para tipar las props
+interface Product {
+  $id: string;
+  detail: string;
+  price: number;
+  // ... otras propiedades que pueda tener
+}
+
+// ✅ Se actualiza la prop `products` para aceptar objetos completos
 const props = defineProps<{
-  products: string[];
+  products: Product[];
   total: number;
 }>();
+
 interface ICalculatedQuote {
   $id: string;
   quantity: number;
   percentage: number;
   amount: string;
 }
+
+// ✅ Se define el evento que el componente emitirá
+const emit = defineEmits<{
+  (e: 'deselect-product', product: Product): void;
+}>();
+
+
 // --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 const { deposits } = useDeposit();
+
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
-// --- LÓGICA DE CÁLCULO ---
+
+// --- LÓGICA ---
+
+// ✅ Se añade la función que emite el evento al componente padre
+const handleDeselect = (productToDeselect: Product) => {
+  emit('deselect-product', productToDeselect);
+};
+
 const depositOptions = computed(() => {
   const baseTotal = customTotal.value ?? props.total;
   if (!baseTotal || deposits.value.length === 0) return [];
@@ -131,12 +170,14 @@ const depositOptions = computed(() => {
     };
   }).sort((a, b) => b.percentage - a.percentage);
 });
+
 const toFinance = computed(() => {
   if (!customDeposit.value) return 0;
   const baseTotal = customTotal.value ?? props.total;
   if (customDeposit.value > baseTotal) return 0;
   return baseTotal - customDeposit.value;
 });
+
 const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
   if (toFinance.value <= 0) return [];
   return quotes.value.map((q) => {
@@ -149,30 +190,39 @@ const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
     };
   });
 });
+
 const showQuotes = computed(() => calculatedQuotes.value.length > 0);
-// --- MÉTODOS ---
+
 const selectDeposit = (amount: number) => {
   customDeposit.value = Math.round(amount);
 };
+
 const parseNumericInput = (value: string): number | undefined => {
   const num = parseFloat(value);
   return isNaN(num) ? undefined : num;
 };
+
 const setCustomTotal = (value: string) => {
   customTotal.value = parseNumericInput(value);
 };
+
 const setCustomDeposit = (value: string) => {
   customDeposit.value = parseNumericInput(value);
 };
+
 const source = ref("");
 const { copy } = useClipboard({ source });
+
 const handleCopyClick = (quote: ICalculatedQuote) => {
+  // Aquí usamos `props.products.map(p => p.detail)` para obtener los nombres
+  const productNames = props.products.map(p => p.detail);
   const depositStr = formatAsArs(customDeposit.value || 0);
   const quoteAmount = quote.amount;
+
   source.value = `Hola!!
 Quería agradecerte por la excelente decisión que tomaste. Te hacemos un breve resumen para que tengas toda la información a mano:
 
-\t•\t*Pieza${props.products.length > 1 ? `s: ${props.products.join(", ")}` : `: ${props.products[0]}`}*
+\t•\t*Pieza${productNames.length > 1 ? `s: ${productNames.join(", ")}` : `: ${productNames[0]}`}*
 \t•\tDepósito inicial: ${depositStr}
 \t•\tCantidad de cuotas: ${quote.quantity}
 \t•\tValor de cada cuota: ${quoteAmount}
@@ -184,6 +234,7 @@ A continuación, unos links de interés:
 \t•\tCurado de Ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
 \t•\tRecetas: https://www.royalprestige.com/ar/inspiracion/recetas
 \t•\tInstagram: https://www.instagram.com/royalprestigeargoficial`;
+
   copy(source.value);
 };
 </script>
@@ -238,10 +289,10 @@ A continuación, unos links de interés:
   filter: brightness(1.1);
 }
 
-/* ✅ --- INICIO: ESTILOS PARA LA NUEVA LISTA DE PRODUCTOS --- ✅ */
+/* ✅ --- ESTILOS PARA LA NUEVA LISTA DE PRODUCTOS --- ✅ */
 .product-details-wrapper {
   margin-bottom: 1rem;
-  flex-grow: 1; /* Hace que esta sección ocupe el espacio disponible */
+  flex-grow: 1;
 }
 .product-list-title {
   display: block;
@@ -262,6 +313,9 @@ A continuación, unos links de interés:
   scrollbar-color: var(--blue-primary) var(--blue-light-bg);
 }
 .product-list li {
+  display: flex; /* Para alinear el nombre y el botón */
+  justify-content: space-between; /* Para ponerlos en extremos opuestos */
+  align-items: center;
   font-size: 0.9rem;
   padding: 0.35rem 0.25rem;
   border-bottom: 1px solid var(--blue-border);
@@ -269,12 +323,16 @@ A continuación, unos links de interés:
 .product-list li:last-child {
   border-bottom: none;
 }
+.product-list li span {
+  flex-grow: 1;
+  word-break: break-word;
+  padding-right: 8px;
+}
 .divider {
   border: none;
   border-top: 1px solid var(--blue-border);
   margin: 0 0 1rem 0;
 }
-/* ✅ --- FIN: ESTILOS PARA LA NUEVA LISTA DE PRODUCTOS --- ✅ */
 
 /* --- 3. Estilos para la Sección de Resultados (Abajo) --- */
 .custom-calculations-wrapper {
@@ -326,7 +384,6 @@ A continuación, unos links de interés:
   color: var(--blue-secondary-text);
   font-style: italic;
 }
-/* Media queries se mantienen */
 @media (max-width: 768px) {
   .setup-wrapper, .custom-calculations-wrapper {
     grid-template-columns: 1fr;
