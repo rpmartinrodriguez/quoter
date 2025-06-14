@@ -1,7 +1,5 @@
 <template>
-  <!-- Calculations Setup -->
   <div class="setup-wrapper">
-    <!-- Real total -->
     <div>
       <b>Precio Total:</b>
       <div class="mt-2">
@@ -9,7 +7,6 @@
       </div>
     </div>
 
-    <!-- Custom Total -->
     <div>
       <b>Precio Total Personalizado:</b>
       <br />
@@ -23,7 +20,6 @@
       ></v-text-field>
     </div>
 
-    <!-- Custom Depósito -->
     <div>
       <b>Depósito Personalizado:</b>
       <br />
@@ -36,23 +32,12 @@
           single-line
           @update:model-value="setCustomDeposit"
         ></v-text-field>
-        <v-btn
-          variant="text"
-          density="compact"
-          icon
-          :disabled="disableCalculate"
-          @click="calculate"
-        >
-          <v-tooltip activator="parent" location="bottom"> Calcular </v-tooltip>
-          <v-icon>mdi-calculator-variant</v-icon>
-        </v-btn>
-      </div>
+        </div>
     </div>
   </div>
 
   <br /><br />
 
-  <!-- Calculated Quotes -->
   <div v-if="showQuotes" class="custom-calculations-wrapper">
     <div class="text-center">
       <p><strong>Monto a financiar</strong></p>
@@ -61,23 +46,23 @@
 
     <div v-for="cq in calculatedQuotes" :key="cq.$id" class="text-center">
       <p>
-        <strong>{{ `${cq.quantity} cuotas (${cq.percentage})` }}</strong>
+        <strong>{{ `${cq.quantity} cuotas (${cq.percentage}%)` }}</strong>
       </p>
       <p class="mt-2">
         {{ cq.amount }}
         <v-tooltip location="bottom">
-          <template v-slot:activator="{ props }">
+          <template v-slot:activator="{ props: tooltipProps }">
             <v-btn
               variant="text"
               density="compact"
               icon
-              v-bind="props"
+              v-bind="tooltipProps"
               @click="handleCopyClick(cq)"
             >
               <v-icon>mdi-content-copy</v-icon>
             </v-btn>
           </template>
-          Copiar {{ cq.quantity }} cuotas ({{ cq.percentage }})
+          Copiar {{ cq.quantity }} cuotas ({{ cq.percentage }}%)
         </v-tooltip>
       </p>
     </div>
@@ -89,62 +74,83 @@
 </template>
 
 <script lang="ts" setup>
+import { ref, computed } from 'vue';
 import { useClipboard } from "@vueuse/core";
 
+// --- PROPS E INTERFACES ---
 const props = defineProps<{
   products: string[];
   total: number;
 }>();
 
+// ✅ Interfaz para mejorar la seguridad de tipos
+interface ICalculatedQuote {
+  $id: string;
+  quantity: number;
+  percentage: number;
+  amount: string;
+}
+
+// --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 
-const calculatedQuotes = ref<any[]>([]);
-const customQuotes = ref<any[]>([]);
-const showQuotes = computed(() => calculatedQuotes.value.length > 0);
-const toFinance = ref<number>(0);
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
 
-const disableCalculate = computed(() => {
-  if (!customDeposit.value) return true;
-  if (customTotal.value && customDeposit.value > customTotal.value) return true;
-  if (!customTotal.value && customDeposit.value > props.total) return true;
-  return false;
+// --- LÓGICA DE CÁLCULO AUTOMÁTICO (REFACTORIZADO) ---
+
+// ✅ `toFinance` ahora es un `computed` que reacciona a los cambios en los inputs.
+const toFinance = computed(() => {
+  if (!customDeposit.value) return 0;
+  
+  const baseTotal = customTotal.value ?? props.total;
+  
+  // Previene cálculos si el depósito es mayor que el total.
+  if (customDeposit.value > baseTotal) return 0;
+
+  return baseTotal - customDeposit.value;
 });
 
-const setCustomTotal = (value: string) => {
-  const num = parseFloat(value);
-  customTotal.value = isNaN(num) ? undefined : num;
-};
+// ✅ `calculatedQuotes` ahora es un `computed` que depende de `toFinance`.
+// Se actualiza automáticamente.
+const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
+  if (toFinance.value <= 0) return [];
 
-const setCustomDeposit = (value: string) => {
-  const num = parseFloat(value);
-  customDeposit.value = isNaN(num) ? undefined : num;
-};
-
-const calculate = () => {
-  if (!customDeposit.value) return;
-
-  toFinance.value = customTotal.value
-    ? customTotal.value - customDeposit.value
-    : props.total - customDeposit.value;
-
-  calculatedQuotes.value = quotes.value.map((q) => {
+  return quotes.value.map((q) => {
     const amount = (toFinance.value * q.percentage) / 100;
     return {
       $id: q.$id,
       quantity: q.quantity,
       percentage: q.percentage,
-      amount: formatAsArs(amount),
+      amount: formatAsArs(Math.round(amount)), // Se añade Math.round para evitar decimales largos
     };
   });
+});
+
+const showQuotes = computed(() => calculatedQuotes.value.length > 0);
+
+// --- MANEJO DE INPUTS (REFACTORIZADO) ---
+
+// ✅ Función de ayuda para evitar repetir código
+const parseNumericInput = (value: string): number | undefined => {
+  const num = parseFloat(value);
+  return isNaN(num) ? undefined : num;
 };
 
+const setCustomTotal = (value: string) => {
+  customTotal.value = parseNumericInput(value);
+};
+
+const setCustomDeposit = (value: string) => {
+  customDeposit.value = parseNumericInput(value);
+};
+
+// --- LÓGICA DEL PORTAPAPELES ---
 const source = ref("");
 const { copy } = useClipboard({ source });
 
-const handleCopyClick = (quote: any) => {
+const handleCopyClick = (quote: ICalculatedQuote) => {
   const depositStr = formatAsArs(customDeposit.value || 0);
   const quoteAmount = quote.amount;
 
