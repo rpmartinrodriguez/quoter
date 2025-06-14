@@ -20,6 +20,7 @@
           </v-alert>
         </v-col>
       </v-row>
+
       <v-data-table
         :headers="headers"
         :items="savedRecords"
@@ -27,6 +28,7 @@
         item-value="$id"
         hover
         class="mt-6"
+        no-data-text="No hay registros guardados todavía."
       >
         <template v-slot:item.quoteDate="{ item }">
           <span>{{ formatSimpleDate(item.quoteDate) }}</span>
@@ -69,7 +71,7 @@ import { computed, onMounted } from 'vue';
 const { getRecords, savedRecords, isLoading } = useSavedQuotes();
 const { formatAsArs, formatSimpleDate } = useFormatters();
 
-// ✅ Se actualizan los encabezados para incluir la nueva columna "Tipo"
+// Encabezados para la tabla de datos
 const headers = [
   { title: 'Fecha', key: 'quoteDate', sortable: true },
   { title: 'Cliente', key: 'clientName', sortable: true },
@@ -80,7 +82,7 @@ const headers = [
   { title: 'Productos', key: 'products', sortable: false, width: '250px' },
 ];
 
-// ✅ Nuevas propiedades computadas para calcular los totales
+// Propiedades computadas para calcular los totales
 const totalSales = computed(() => 
   savedRecords.value
     .filter(r => r.type === 'VENTA')
