@@ -32,7 +32,22 @@
           single-line
           @update:model-value="setCustomDeposit"
         ></v-text-field>
-        </div>
+      </div>
+
+      <div v-if="depositOptions.length > 0" class="mt-3 d-flex flex-wrap ga-2">
+        <v-chip
+          v-for="option in depositOptions"
+          :key="option.percentage"
+          @click="selectDeposit(option.amount)"
+          color="primary"
+          variant="outlined"
+          label
+          style="cursor: pointer;"
+          title="Clic para usar este depósito"
+        >
+          {{ option.label }}
+        </v-chip>
+      </div>
     </div>
   </div>
 
@@ -69,7 +84,7 @@
   </div>
 
   <div v-else class="text-center">
-    Indique un depósito personalizado para calcular las cuotas
+    Indique un depósito para calcular las cuotas
   </div>
 </template>
 
@@ -83,7 +98,6 @@ const props = defineProps<{
   total: number;
 }>();
 
-// ✅ Interfaz para mejorar la seguridad de tipos
 interface ICalculatedQuote {
   $id: string;
   quantity: number;
@@ -94,45 +108,55 @@ interface ICalculatedQuote {
 // --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
+const { deposits } = useDeposit(); // Se obtienen los depósitos
 
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
 
-// --- LÓGICA DE CÁLCULO AUTOMÁTICO (REFACTORIZADO) ---
+// --- LÓGICA DE CÁLCULO ---
 
-// ✅ `toFinance` ahora es un `computed` que reacciona a los cambios en los inputs.
+const depositOptions = computed(() => {
+  const baseTotal = customTotal.value ?? props.total;
+  if (!baseTotal || deposits.value.length === 0) return [];
+  
+  return deposits.value.map(dep => {
+    const amount = (baseTotal * dep.percentage) / 100;
+    return {
+      percentage: dep.percentage,
+      amount,
+      label: `${dep.percentage}% (${formatAsArs(amount)})`
+    };
+  });
+});
+
 const toFinance = computed(() => {
   if (!customDeposit.value) return 0;
-  
   const baseTotal = customTotal.value ?? props.total;
-  
-  // Previene cálculos si el depósito es mayor que el total.
   if (customDeposit.value > baseTotal) return 0;
-
   return baseTotal - customDeposit.value;
 });
 
-// ✅ `calculatedQuotes` ahora es un `computed` que depende de `toFinance`.
-// Se actualiza automáticamente.
 const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
   if (toFinance.value <= 0) return [];
-
   return quotes.value.map((q) => {
     const amount = (toFinance.value * q.percentage) / 100;
     return {
       $id: q.$id,
       quantity: q.quantity,
       percentage: q.percentage,
-      amount: formatAsArs(Math.round(amount)), // Se añade Math.round para evitar decimales largos
+      amount: formatAsArs(Math.round(amount)),
     };
   });
 });
 
 const showQuotes = computed(() => calculatedQuotes.value.length > 0);
 
-// --- MANEJO DE INPUTS (REFACTORIZADO) ---
+// --- MÉTODOS ---
 
-// ✅ Función de ayuda para evitar repetir código
+const selectDeposit = (amount: number) => {
+  customDeposit.value = Math.round(amount);
+};
+
 const parseNumericInput = (value: string): number | undefined => {
   const num = parseFloat(value);
   return isNaN(num) ? undefined : num;
@@ -146,7 +170,6 @@ const setCustomDeposit = (value: string) => {
   customDeposit.value = parseNumericInput(value);
 };
 
-// --- LÓGICA DEL PORTAPAPELES ---
 const source = ref("");
 const { copy } = useClipboard({ source });
 
@@ -175,13 +198,13 @@ A continuación, unos links de interés:
 </script>
 
 <style>
+/* Los estilos no necesitan cambios */
 .setup-wrapper {
   column-gap: 3em;
   display: grid;
   grid-template-columns: auto repeat(2, 1fr);
   justify-content: center;
 }
-
 .custom-calculations-wrapper {
   column-gap: 1em;
   display: grid;
@@ -189,29 +212,18 @@ A continuación, unos links de interés:
   justify-content: center;
   row-gap: 1em;
 }
-
 @media (max-width: 768px) {
   .setup-wrapper {
     grid-template-columns: 1fr;
     row-gap: 1em;
   }
-
   .custom-calculations-wrapper {
-    column-gap: 1em;
-    display: grid;
     grid-template-columns: repeat(2, 1fr);
-    justify-content: center;
-    row-gap: 1em;
   }
 }
-
 @media (max-width: 430px) {
   .custom-calculations-wrapper {
-    column-gap: 1em;
-    display: grid;
     grid-template-columns: 1fr;
-    justify-content: center;
-    row-gap: 1em;
   }
 }
 </style>
