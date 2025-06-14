@@ -7,11 +7,6 @@
     </v-app-bar>
 
     <v-navigation-drawer v-model="drawer" location="right" temporary>
-      <template v-if="user">
-        <v-list-item :title="user.name" :subtitle="user.email"></v-list-item>
-        <v-divider></v-divider>
-      </template>
-
       <v-list nav>
         <v-list-item
           prepend-icon="mdi-calculator"
@@ -42,14 +37,6 @@
           to="/settings"
         ></v-list-item>
       </v-list>
-
-      <template v-slot:append>
-        <div class="pa-2" v-if="user">
-          <v-btn block color="red" variant="tonal" @click="logout">
-            Cerrar Sesión
-          </v-btn>
-        </div>
-      </template>
     </v-navigation-drawer>
 
     <v-main class="main-content">
@@ -62,8 +49,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue';
-// Importamos el estado del usuario y la función de logout
-const { user, logout } = useAuth(); 
+// ✅ Se elimina la llamada a useAuth()
 const drawer = ref(false);
 </script>
 
