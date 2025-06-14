@@ -1,29 +1,27 @@
 <template>
-  <div class="setup-wrapper">
-    <div>
-      <b>Precio Total:</b>
-      <div class="mt-2">
-        {{ formatAsArs(props.total || 0) }}
+  <div class="custom-calc-container">
+    <div class="setup-wrapper">
+      <div class="setup-item">
+        <b>Precio Total:</b>
+        <div class="mt-2 price-display">
+          {{ formatAsArs(props.total || 0) }}
+        </div>
       </div>
-    </div>
 
-    <div>
-      <b>Precio Total Personalizado:</b>
-      <br />
-      <v-text-field
-        :model-value="customTotal"
-        variant="outlined"
-        density="compact"
-        hide-details
-        single-line
-        @update:model-value="setCustomTotal"
-      ></v-text-field>
-    </div>
+      <div class="setup-item">
+        <b>Precio Total Personalizado:</b>
+        <v-text-field
+          :model-value="customTotal"
+          variant="outlined"
+          density="compact"
+          hide-details
+          single-line
+          @update:model-value="setCustomTotal"
+        ></v-text-field>
+      </div>
 
-    <div>
-      <b>Depósito Personalizado:</b>
-      <br />
-      <div class="d-flex align-center ga-3">
+      <div class="setup-item">
+        <b>Depósito Personalizado:</b>
         <v-text-field
           :model-value="customDeposit"
           variant="outlined"
@@ -32,59 +30,59 @@
           single-line
           @update:model-value="setCustomDeposit"
         ></v-text-field>
+
+        <div v-if="depositOptions.length > 0" class="mt-3 d-flex flex-wrap ga-2">
+          <v-chip
+            v-for="option in depositOptions"
+            :key="option.percentage"
+            @click="selectDeposit(option.amount)"
+            color="primary"
+            variant="tonal"
+            label
+            style="cursor: pointer;"
+            title="Clic para usar este depósito"
+          >
+            {{ option.label }}
+          </v-chip>
+        </div>
+      </div>
+    </div>
+
+    <br /><br />
+
+    <div v-if="showQuotes" class="custom-calculations-wrapper">
+      <div class="result-card amount-to-finance">
+        <p><strong>Monto a financiar</strong></p>
+        <p class="mt-2">{{ formatAsArs(toFinance || 0) }}</p>
       </div>
 
-      <div v-if="depositOptions.length > 0" class="mt-3 d-flex flex-wrap ga-2">
-        <v-chip
-          v-for="option in depositOptions"
-          :key="option.percentage"
-          @click="selectDeposit(option.amount)"
-          color="primary"
-          variant="outlined"
-          label
-          style="cursor: pointer;"
-          title="Clic para usar este depósito"
-        >
-          {{ option.label }}
-        </v-chip>
+      <div v-for="cq in calculatedQuotes" :key="cq.$id" class="result-card">
+        <p>
+          <strong>{{ `${cq.quantity} cuotas (${cq.percentage}%)` }}</strong>
+        </p>
+        <p class="mt-2">
+          {{ cq.amount }}
+          <v-tooltip location="bottom">
+            <template v-slot:activator="{ props: tooltipProps }">
+              <v-btn
+                variant="text"
+                density="compact"
+                icon
+                v-bind="tooltipProps"
+                @click="handleCopyClick(cq)"
+              >
+                <v-icon size="small">mdi-content-copy</v-icon>
+              </v-btn>
+            </template>
+            Copiar {{ cq.quantity }} cuotas ({{ cq.percentage }}%)
+          </v-tooltip>
+        </p>
       </div>
     </div>
-  </div>
 
-  <br /><br />
-
-  <div v-if="showQuotes" class="custom-calculations-wrapper">
-    <div class="text-center">
-      <p><strong>Monto a financiar</strong></p>
-      <p class="mt-2">{{ formatAsArs(toFinance || 0) }}</p>
+    <div v-else class="text-center no-quotes-message">
+      Indique un depósito para calcular las cuotas
     </div>
-
-    <div v-for="cq in calculatedQuotes" :key="cq.$id" class="text-center">
-      <p>
-        <strong>{{ `${cq.quantity} cuotas (${cq.percentage}%)` }}</strong>
-      </p>
-      <p class="mt-2">
-        {{ cq.amount }}
-        <v-tooltip location="bottom">
-          <template v-slot:activator="{ props: tooltipProps }">
-            <v-btn
-              variant="text"
-              density="compact"
-              icon
-              v-bind="tooltipProps"
-              @click="handleCopyClick(cq)"
-            >
-              <v-icon>mdi-content-copy</v-icon>
-            </v-btn>
-          </template>
-          Copiar {{ cq.quantity }} cuotas ({{ cq.percentage }}%)
-        </v-tooltip>
-      </p>
-    </div>
-  </div>
-
-  <div v-else class="text-center">
-    Indique un depósito para calcular las cuotas
   </div>
 </template>
 
@@ -108,13 +106,12 @@ interface ICalculatedQuote {
 // --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
-const { deposits } = useDeposit(); // Se obtienen los depósitos
+const { deposits } = useDeposit();
 
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
 
 // --- LÓGICA DE CÁLCULO ---
-
 const depositOptions = computed(() => {
   const baseTotal = customTotal.value ?? props.total;
   if (!baseTotal || deposits.value.length === 0) return [];
@@ -124,9 +121,9 @@ const depositOptions = computed(() => {
     return {
       percentage: dep.percentage,
       amount,
-      label: `${dep.percentage}% (${formatAsArs(amount)})`
+      label: `${dep.percentage}%` // Se quita el monto para un look más limpio
     };
-  });
+  }).sort((a, b) => b.percentage - a.percentage); // Ordenar de mayor a menor
 });
 
 const toFinance = computed(() => {
@@ -152,7 +149,6 @@ const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
 const showQuotes = computed(() => calculatedQuotes.value.length > 0);
 
 // --- MÉTODOS ---
-
 const selectDeposit = (amount: number) => {
   customDeposit.value = Math.round(amount);
 };
@@ -198,31 +194,120 @@ A continuación, unos links de interés:
 </script>
 
 <style>
-/* Los estilos no necesitan cambios */
+/* --- 1. Definición de la Paleta de Colores y Tipografía --- */
+.custom-calc-container {
+  /* Tipografía Moderna */
+  font-family: 'Inter', sans-serif;
+
+  /* Paleta de Colores Azules */
+  --blue-primary: #0d6efd;      /* Azul principal de Bootstrap, vibrante */
+  --blue-light-bg: #f4f8ff;    /* Fondo azul muy suave */
+  --blue-dark-text: #212529;   /* Texto oscuro, casi negro */
+  --blue-secondary-text: #6c757d; /* Texto secundario gris azulado */
+  --blue-border: #dee2e6;      /* Borde gris claro */
+  --white: #ffffff;
+  --shadow-color: rgba(13, 110, 253, 0.1); /* Sombra suave basada en el azul */
+}
+
+/* --- 2. Estilos para la Sección de Configuración (Arriba) --- */
 .setup-wrapper {
-  column-gap: 3em;
   display: grid;
-  grid-template-columns: auto repeat(2, 1fr);
-  justify-content: center;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  color: var(--blue-dark-text);
 }
+
+.setup-item {
+  background-color: var(--white);
+  border: 1px solid var(--blue-border);
+  border-radius: 12px; /* Bordes redondeados */
+  padding: 1.25rem;
+  transition: box-shadow 0.3s ease;
+}
+
+.setup-item:focus-within {
+  box-shadow: 0 4px 15px var(--shadow-color); /* Sombra cuando un input está activo */
+  border-color: var(--blue-primary);
+}
+
+.setup-item b {
+  font-weight: 500;
+  color: var(--blue-secondary-text);
+  font-size: 0.85rem;
+}
+
+.price-display {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--blue-dark-text);
+}
+
+.v-chip {
+  transition: all 0.2s ease-in-out;
+}
+.v-chip:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+
+/* --- 3. Estilos para la Sección de Resultados (Abajo) --- */
 .custom-calculations-wrapper {
-  column-gap: 1em;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+
+.result-card {
+  background-color: var(--blue-light-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+
+.result-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px var(--shadow-color);
+  border-color: var(--blue-primary);
+}
+
+.result-card.amount-to-finance {
+  background-color: var(--blue-dark-text);
+  color: var(--white);
+}
+.result-card.amount-to-finance p, 
+.result-card.amount-to-finance strong {
+  color: var(--white);
+}
+
+.result-card p {
+  margin: 0;
+  color: var(--blue-dark-text);
+}
+.result-card p strong {
+  color: var(--blue-secondary-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.result-card .mt-2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 0.5rem !important;
+  display: flex;
+  align-items: center;
   justify-content: center;
-  row-gap: 1em;
+  gap: 0.5rem;
 }
+.no-quotes-message {
+  color: var(--blue-secondary-text);
+  font-style: italic;
+}
+
+/* Media queries se mantienen, no necesitan cambios */
 @media (max-width: 768px) {
-  .setup-wrapper {
-    grid-template-columns: 1fr;
-    row-gap: 1em;
-  }
-  .custom-calculations-wrapper {
-    grid-template-columns: repeat(2, 1fr);
-  }
-}
-@media (max-width: 430px) {
-  .custom-calculations-wrapper {
+  .setup-wrapper, .custom-calculations-wrapper {
     grid-template-columns: 1fr;
   }
 }
