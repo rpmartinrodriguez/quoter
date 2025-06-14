@@ -1,6 +1,8 @@
 <script lang="ts" setup>
+import { ref, reactive, computed, watch } from 'vue';
 import { useWindowSize } from "@vueuse/core";
 
+// Interfaces para el estado local
 interface Loading {
   products: boolean;
   passwordForm: boolean;
@@ -14,6 +16,16 @@ interface Dialog {
   customCalculation: boolean;
 }
 
+// Interfaces para los datos (idealmente en un archivo de tipos global)
+interface Product {
+  $id: string;
+  detail: string;
+  composition: string;
+  price: number;
+  color?: string; // Asumiendo que `color` es opcional y de tipo string
+}
+
+// --- Composable y Estado ---
 const { formatAsArs } = useFormatters();
 const search = ref<string>("");
 const loadings = reactive<Loading>({
@@ -31,24 +43,34 @@ const dialogs = reactive<Dialog>({
 const { height: windowHeight } = useWindowSize();
 const dataTableHeight = computed(() => windowHeight.value - 196);
 
-const { list: products, selected } = useProducts("get");
+// ✅ --- CORRECCIÓN APLICADA AQUÍ ---
+// Se elimina el parámetro "get" para usar la carga automática y robusta del composable.
+const { list: products, selected } = useProducts(); 
 const selectedPs = ref<Product[]>([]);
 
-// ✅ Sincronizar manualmente los productos seleccionados
+// Sincronización del estado local de selección (`selectedPs`) al estado global (`selected`).
+// Esto es correcto y permite que otros componentes reaccionen a los cambios.
 watch(selectedPs, (newVal) => {
   selected.value = [...newVal];
 });
 
-// Estado de selección vacía
+// --- Propiedades Computadas ---
 const noneSelected = computed(() => selectedPs.value.length === 0);
 
-// Encabezados tabla
+const productsDetails = computed(() =>
+  selectedPs.value
+    .filter((p) => !!p?.detail)
+    .map((p: Product) => p.detail)
+);
+
+// Encabezados de la tabla de productos.
 const headers = ref([
   { align: "start", key: "detail", title: "Detalle" },
   { align: "start", key: "composition", title: "Composición" },
   { align: "start", key: "price", title: "Precio de lista" },
 ]);
 
+// --- Métodos ---
 const total = ref<number>(0);
 const newCustomCalculation = () => {
   total.value = selectedPs.value.reduce(
@@ -58,13 +80,7 @@ const newCustomCalculation = () => {
   dialogs.customCalculation = true;
 };
 
-const productsDetails = computed(() =>
-  selectedPs.value
-    .filter((p) => !!p?.detail)
-    .map((p: Product) => p.detail)
-);
-
-// 👉 Lógica de selección manual (no usar `v-model:selected`)
+// Lógica para manejar la selección de filas en la tabla.
 const isSelected = (i: Product) =>
   !!i?.$id && selectedPs.value.some((item) => item?.$id === i.$id);
 
@@ -78,10 +94,11 @@ const toggleSelect = (i: Product) => {
   }
 };
 
-// Validaciones generales
+// --- Validaciones de Estado de la App ---
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const config = useRuntimeConfig();
+
 const configOk = computed(() =>
   !!config.public.endpoint &&
   !!config.public.project &&
@@ -96,7 +113,6 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
 
 <template>
   <v-container fluid>
-    <!-- Alertas de validación -->
     <v-alert v-if="configOk" type="success" variant="tonal" class="mb-2 text-center">
       ✅ Configuración cargada correctamente
     </v-alert>
@@ -230,8 +246,8 @@ const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.valu
             </v-btn>
           </v-card-title>
           <v-card-text>
-            <div v-if="noneSelected">
-              <p class="text-center">Escoja uno o varios productos para cotizar</p>
+            <div v-if="noneSelected" class="text-center">
+              <p>Escoja uno o varios productos para cotizar</p>
             </div>
             <div v-else>
               <CalculationTable />
