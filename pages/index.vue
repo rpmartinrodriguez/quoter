@@ -87,10 +87,12 @@ const handleDeselect = (productToDeselect: Product) => {
 
 
 // --- VALIDACIONES DE ESTADO ---
+// Se mantienen los composables porque pueden ser necesarios en otras partes o en el futuro
 const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const config = useRuntimeConfig();
 
+// Se deja solo la validación de configuración, que es la más importante
 const configOk = computed(() =>
   !!config.public.endpoint &&
   !!config.public.project &&
@@ -99,22 +101,12 @@ const configOk = computed(() =>
   !!config.public.cDeposits &&
   !!config.public.cQuotes
 );
-const quotesOk = computed(() => Array.isArray(quotes.value) && quotes.value.length > 0);
-const depositsOk = computed(() => Array.isArray(deposits.value) && deposits.value.length > 0);
 </script>
 
 <template>
   <v-container fluid>
     <v-alert v-if="!configOk" type="error" variant="outlined" class="mb-2 text-center">
-      ⚠️ Error de configuración: Verificá el archivo .env y la conexión.
-    </v-alert>
-
-    <v-alert v-if="!quotesOk" type="error" variant="outlined" class="mb-2 text-center">
-      ⚠️ No se cargaron las cuotas. Revisar Appwrite o IDs en .env
-    </v-alert>
-
-    <v-alert v-if="!depositsOk" type="error" variant="outlined" class="mb-4 text-center">
-      ⚠️ No se cargaron los depósitos. Revisar Appwrite o IDs en .env
+      ⚠️ Error de configuración: Verificá las variables de entorno y la conexión.
     </v-alert>
 
     <v-row>
