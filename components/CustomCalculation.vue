@@ -97,7 +97,7 @@
                 <v-icon size="small">mdi-content-copy</v-icon>
               </v-btn>
             </template>
-            Copiar y Guardar Registro
+            Copiar {{ cq.quantity }} cuotas ({{ cq.percentage }}%)
           </v-tooltip>
         </p>
       </div>
@@ -108,50 +108,20 @@
     </div>
   </div>
 
-  <v-dialog v-model="dialogs.typeSelection" persistent max-width="450">
-    <v-card class="text-center pa-5" rounded="lg">
-      <v-icon size="64" color="primary" class="mb-4">mdi-content-save-question-outline</v-icon>
-      
-      <h3 class="text-h5 font-weight-bold mb-2">Guardar Registro</h3>
-      
-      <p class="body-1 text-medium-emphasis mb-6 px-4">
-        La información se copió al portapapeles. ¿Cómo deseas guardar este registro?
-      </p>
-      
-      <div class="d-flex flex-column ga-3">
-        <v-btn 
-          color="success" 
-          size="large" 
-          variant="flat" 
-          @click="handleTypeSelected('VENTA')" 
-          prepend-icon="mdi-check-decagram"
-          block
-        >
-          Confirmar como Venta
-        </v-btn>
-        
-        <v-btn 
-          color="info" 
-          size="large" 
-          variant="tonal" 
-          @click="handleTypeSelected('COTIZACIÓN')" 
-          prepend-icon="mdi-file-document-outline"
-          block
-        >
-          Guardar como Cotización
-        </v-btn>
-        
-        <v-btn 
-          variant="text" 
-          size="small" 
-          @click="dialogs.typeSelection = false" 
-          class="mt-2"
-        >
-          No Guardar
-        </v-btn>
-      </div>
+  <v-dialog v-model="dialogs.typeSelection" persistent max-width="400">
+    <v-card class="pa-4 text-center">
+      <v-card-title class="text-h5">Guardar Registro</v-card-title>
+      <v-card-text>
+        La información de la cotización se ha copiado. ¿Deseas guardar este registro como Venta o como Cotización?
+      </v-card-text>
+      <v-card-actions class="d-flex justify-center ga-3">
+        <v-btn color="grey" @click="dialogs.typeSelection = false">Cancelar</v-btn>
+        <v-btn color="secondary" variant="tonal" @click="handleTypeSelected('COTIZACIÓN')">Guardar Cotización</v-btn>
+        <v-btn color="success" variant="flat" @click="handleTypeSelected('VENTA')">Confirmar Venta</v-btn>
+      </v-card-actions>
     </v-card>
   </v-dialog>
+
   <v-dialog v-model="dialogs.clientForm" persistent max-width="600">
     <v-card>
       <v-card-title>
@@ -166,7 +136,7 @@
                 label="Nombre y Apellido*"
                 required
                 variant="outlined"
-              ></v--text-field>
+              ></v-text-field>
             </v-col>
             <v-col cols="12">
               <v-text-field
@@ -188,9 +158,9 @@
       </v-card-text>
       <v-card-actions>
         <v-spacer></v-spacer>
-        <v-btn color="secondary" text @click="closeAndResetForms">Cancelar</v-btn>
+        <v-btn color="blue-darken-1" variant="text" @click="closeAndResetForms">Cancelar</v-btn>
         <v-btn 
-          color="primary" 
+          color="blue-darken-1" 
           variant="flat" 
           @click="handleSaveTransaction" 
           :disabled="!clientData.name"
@@ -208,13 +178,11 @@ import { ref, reactive, computed } from 'vue';
 import { useClipboard } from "@vueuse/core";
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
 
-// El script es el que me pasaste que funcionaba, sin ninguna lógica extra de snackbars o PDFs.
 // --- PROPS E INTERFACES ---
 interface Product {
   $id: string;
   detail: string;
   price: number;
-  color?: string;
 }
 interface ICalculatedQuote {
   $id: string;
@@ -254,7 +222,7 @@ const lastQuoteCopied = ref<ICalculatedQuote | null>(null);
 // --- LÓGICA DE CÁLCULO ---
 const depositOptions = computed(() => {
   const baseTotal = customTotal.value ?? props.total;
-  if (!baseTotal || !deposits.value || deposits.value.length === 0) return [];
+  if (!baseTotal || deposits.value.length === 0) return [];
   
   return deposits.value.map(dep => {
     const amount = (baseTotal * dep.percentage) / 100;
@@ -274,7 +242,7 @@ const toFinance = computed(() => {
 });
 
 const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
-  if (toFinance.value <= 0 || !quotes.value) return [];
+  if (toFinance.value <= 0) return [];
   return quotes.value.map((q) => {
     const amount = (toFinance.value * q.percentage) / 100;
     return {
@@ -378,7 +346,7 @@ const handleSaveTransaction = async () => {
 </script>
 
 <style>
-/* Tus estilos que ya funcionaban */
+/* --- 1. Definición de la Paleta de Colores y Tipografía --- */
 .custom-calc-container {
   font-family: 'Inter', sans-serif;
   --blue-primary: #0d6efd;
@@ -389,6 +357,7 @@ const handleSaveTransaction = async () => {
   --white: #ffffff;
   --shadow-color: rgba(13, 110, 253, 0.1);
 }
+/* --- 2. Estilos para la Sección de Configuración (Arriba) --- */
 .setup-wrapper {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -468,6 +437,7 @@ const handleSaveTransaction = async () => {
   border-top: 1px solid var(--blue-border);
   margin: 0 0 1rem 0;
 }
+/* --- 3. Estilos para la Sección de Resultados (Abajo) --- */
 .custom-calculations-wrapper {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
