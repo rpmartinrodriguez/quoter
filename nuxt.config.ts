@@ -28,7 +28,6 @@ export default defineNuxtConfig({
   // --- CONFIGURACIÓN DE RUNTIME COMPLETA Y CORREGIDA ---
   runtimeConfig: {
     // Las claves aquí SOLO son accesibles en el entorno del servidor.
-    // Esto es para proteger tu API Key.
     projectApiKey: process.env.PROJECT_API_KEY,
 
     // Las claves aquí son seguras para exponer en el navegador.
@@ -40,7 +39,10 @@ export default defineNuxtConfig({
       cDeposits: process.env.C_DEPOSITS,
       cQuotes: process.env.C_QUOTES,
       cActionPasswords: process.env.C_ACTION_PASSWORDS,
-      cRecords: process.env.C_RECORDS, // Leemos la nueva variable para los registros guardados
+      cRecords: process.env.C_RECORDS,
+      
+      // ✅ AÑADIMOS LA NUEVA VARIABLE PARA LA COLECCIÓN DE REFERIDOS
+      cReferrals: process.env.C_REFERRALS,
     },
   },
 
