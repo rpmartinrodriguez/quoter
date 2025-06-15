@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { ID, Query } from 'appwrite';
 
-// Interfaz para tipar los registros guardados
+// Interfaz para los registros guardados
 export interface ISavedRecord {
   $id: string;
   clientName: string;
@@ -17,7 +17,6 @@ export interface ISavedRecord {
   conversionDate?: string;
 }
 
-// Estado singleton compartido por toda la aplicación
 const savedRecords = ref<ISavedRecord[]>([]);
 const isLoading = ref(false);
 
@@ -28,9 +27,7 @@ export const useSavedQuotes = () => {
 
   // --- Función para OBTENER registros ---
   const getRecords = async () => {
-    // Evita cargas múltiples si ya hay una en curso
     if (isLoading.value) return; 
-    
     isLoading.value = true;
     try {
       const response = await databases.listDocuments(
@@ -58,7 +55,8 @@ export const useSavedQuotes = () => {
         record
       );
       console.log("✅ Registro guardado exitosamente!");
-      await getRecords(); // Recargamos la lista después de guardar
+      // ✅ LÍNEA CLAVE: Después de guardar, refrescamos la lista.
+      await getRecords();
     } catch (error) {
       console.error("❌ Error al guardar el registro:", error);
       throw error;
@@ -76,17 +74,15 @@ export const useSavedQuotes = () => {
         isConverted: true,
         conversionDate: new Date().toISOString()
       };
-      
       await databases.updateDocument(
         config.public.database,
         COLLECTION_ID,
         recordId,
         updateData
       );
-      
       console.log(`✅ Registro ${recordId} convertido a VENTA.`);
-      await getRecords(); // Recargamos la lista después de convertir
-
+      // ✅ LÍNEA CLAVE: Después de convertir, también refrescamos la lista.
+      await getRecords();
     } catch (error) {
       console.error(`❌ Error al convertir el registro ${recordId}:`, error);
       throw error;
@@ -95,15 +91,10 @@ export const useSavedQuotes = () => {
     }
   };
 
-
-  // ✅ --- LÓGICA DE AUTO-INICIALIZACIÓN --- ✅
-  // Si la lista de registros está vacía y no se está cargando,
-  // se llama a getRecords() automáticamente.
-  // Esto asegura que los datos estén disponibles la primera vez que se use el composable.
+  // Lógica de auto-inicialización
   if (savedRecords.value.length === 0 && !isLoading.value) {
     getRecords();
   }
-
 
   // Se exponen todas las funcionalidades
   return {
