@@ -72,24 +72,9 @@
       </div>
     </div>
 
-    <div class="text-right mt-4" v-if="showQuotes">
-      <v-btn
-        @click="exportToPDF"
-        color="primary"
-        prepend-icon="mdi-file-pdf-box"
-        :loading="isExporting"
-      >
-        Exportar a PDF
-      </v-btn>
-    </div>
+    <br /><br />
 
-    <br />
-
-    <div
-      id="quote-results"
-      v-if="showQuotes"
-      class="custom-calculations-wrapper"
-    >
+    <div v-if="showQuotes" class="custom-calculations-wrapper">
       <div class="result-card amount-to-finance">
         <p><strong>Monto a financiar</strong></p>
         <p class="mt-2">{{ formatAsArs(toFinance || 0) }}</p>
@@ -162,7 +147,7 @@
           @click="dialogs.typeSelection = false" 
           class="mt-2"
         >
-          Solo Copiar, no Guardar
+          No Guardar
         </v-btn>
       </div>
     </v-card>
@@ -181,7 +166,7 @@
                 label="Nombre y Apellido*"
                 required
                 variant="outlined"
-              ></v-text-field>
+              ></v--text-field>
             </v-col>
             <v-col cols="12">
               <v-text-field
@@ -219,12 +204,11 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, nextTick } from 'vue';
+import { ref, reactive, computed } from 'vue';
 import { useClipboard } from "@vueuse/core";
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
-import jsPDF from 'jspdf';
-import html2canvas from 'html2canvas';
 
+// El script es el que me pasaste que funcionaba, sin ninguna lógica extra de snackbars o PDFs.
 // --- PROPS E INTERFACES ---
 interface Product {
   $id: string;
@@ -244,16 +228,15 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: 'deselect-product', product: Product): void; }>();
 
+
 // --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 const { deposits } = useDeposit();
 const { saveRecord, isLoading: isSaving } = useSavedQuotes();
-const { showSnackbar } = useSnackbar();
 
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
-const isExporting = ref(false);
 
 const dialogs = reactive({
   typeSelection: false,
@@ -282,12 +265,14 @@ const depositOptions = computed(() => {
     };
   }).sort((a, b) => b.percentage - a.percentage);
 });
+
 const toFinance = computed(() => {
   if (!customDeposit.value) return 0;
   const baseTotal = customTotal.value ?? props.total;
   if (customDeposit.value > baseTotal) return 0;
   return baseTotal - customDeposit.value;
 });
+
 const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
   if (toFinance.value <= 0 || !quotes.value) return [];
   return quotes.value.map((q) => {
@@ -300,6 +285,7 @@ const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
     };
   });
 });
+
 const showQuotes = computed(() => calculatedQuotes.value.length > 0);
 
 
@@ -307,28 +293,33 @@ const showQuotes = computed(() => calculatedQuotes.value.length > 0);
 const handleDeselect = (productToDeselect: Product) => {
   emit('deselect-product', productToDeselect);
 };
+
 const selectDeposit = (amount: number) => {
   customDeposit.value = Math.round(amount);
 };
+
 const parseNumericInput = (value: string): number | undefined => {
   const num = parseFloat(value);
   return isNaN(num) ? undefined : num;
 };
+
 const setCustomTotal = (value: string) => {
   customTotal.value = parseNumericInput(value);
 };
+
 const setCustomDeposit = (value: string) => {
   customDeposit.value = parseNumericInput(value);
 };
 
-// --- LÓGICA DE COPIADO Y GUARDADO ---
 const source = ref("");
 const { copy } = useClipboard({ source });
+
 const handleCopyClick = (quote: ICalculatedQuote) => {
   lastQuoteCopied.value = quote;
   const productNames = props.products.map(p => p.detail);
   const depositStr = formatAsArs(customDeposit.value || 0);
   const quoteAmount = quote.amount;
+
   source.value = `Hola!!
 Quería agradecerte por la excelente decisión que tomaste. Te hacemos un breve resumen para que tengas toda la información a mano:
 
@@ -344,24 +335,28 @@ A continuación, unos links de interés:
 \t•\tCurado de Ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
 \t•\tRecetas: https://www.royalprestige.com/ar/inspiracion/recetas
 \t•\tInstagram: https://www.instagram.com/royalprestigeargoficial`;
+
   copy(source.value);
-  showSnackbar({ text: '¡Texto copiado al portapapeles!', color: 'info' });
+
   dialogs.typeSelection = true;
 };
+
 const handleTypeSelected = (type: 'VENTA' | 'COTIZACIÓN') => {
   transactionType.value = type;
   dialogs.typeSelection = false;
   dialogs.clientForm = true;
 };
+
 const closeAndResetForms = () => {
   dialogs.clientForm = false;
-  dialogs.typeSelection = false;
   clientData.name = '';
   clientData.address = '';
   clientData.phone = '';
 };
+
 const handleSaveTransaction = async () => {
   if (!clientData.name || !lastQuoteCopied.value) return;
+
   const recordToSave: ISavedRecord = {
     clientName: clientData.name,
     clientAddress: clientData.address,
@@ -373,47 +368,17 @@ const handleSaveTransaction = async () => {
     depositAmount: customDeposit.value || 0,
     installmentsInfo: `${lastQuoteCopied.value.quantity} cuotas de ${lastQuoteCopied.value.amount}`
   };
+
   try {
     await saveRecord(recordToSave);
-    showSnackbar({ text: 'Registro guardado con éxito', color: 'success' });
-  } catch(e) {
-    showSnackbar({ text: 'Error al guardar el registro', color: 'error' });
   } finally {
     closeAndResetForms();
-  }
-};
-
-// --- LÓGICA DE EXPORTACIÓN A PDF ---
-const exportToPDF = async () => {
-  isExporting.value = true;
-  const { default: jsPDF } = await import('jspdf');
-  const { default: html2canvas } = await import('html2canvas');
-  await nextTick();
-  const elementToCapture = document.getElementById('quote-results');
-  if (!elementToCapture) {
-    isExporting.value = false;
-    return;
-  }
-  try {
-    const canvas = await html2canvas(elementToCapture, { scale: 2, useCORS: true, backgroundColor: '#ffffff' });
-    const pdf = new jsPDF('p', 'mm', 'a4');
-    const imgData = canvas.toDataURL('image/png');
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-    let position = 0;
-    pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-    pdf.save(`cotizacion-${new Date().toLocaleDateString('es-AR')}.pdf`);
-  } catch (error) {
-    console.error("Error al generar el PDF:", error);
-    showSnackbar({ text: 'Error al generar el PDF', color: 'error' });
-  } finally {
-    isExporting.value = false;
   }
 };
 </script>
 
 <style>
-/* Los estilos no necesitan cambios */
+/* Tus estilos que ya funcionaban */
 .custom-calc-container {
   font-family: 'Inter', sans-serif;
   --blue-primary: #0d6efd;
