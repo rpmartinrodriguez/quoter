@@ -5,7 +5,12 @@
       Mi Estadística
     </v-card-title>
     
-    <v-card-text>
+    <div v-if="isLoading" class="text-center pa-8">
+      <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
+      <div class="mt-4 text-grey">Cargando datos históricos...</div>
+    </div>
+
+    <v-card-text v-else>
       <v-row>
         <v-col cols="12">
           <div class="text-overline">Estadísticas Globales (Todo el Histórico)</div>
@@ -65,6 +70,39 @@
           </v-alert>
         </v-col>
       </v-row>
+
+      <v-divider class="my-8"></v-divider>
+
+      <v-row>
+        <v-col>
+           <div class="text-overline mb-2">Ranking de Productos (Histórico)</div>
+          <v-card flat variant="outlined">
+            <v-card-title>Productos Más Populares</v-card-title>
+            <v-card-subtitle>Basado en todas las ventas y cotizaciones guardadas.</v-card-subtitle>
+            <v-card-text>
+              <v-list lines="one">
+                <v-list-item
+                  v-for="(product, index) in rankingDeProductos"
+                  :key="product.name"
+                >
+                  <template v-slot:prepend>
+                    <span class="font-weight-bold mr-4 text-h6 text-primary">#{{ index + 1 }}</span>
+                  </template>
+                  
+                  <v-list-item-title>{{ product.name }}</v-list-item-title>
+                  <v-list-item-subtitle>
+                    Incluido en {{ product.count }} registros
+                  </v-list-item-subtitle>
+                </v-list-item>
+
+                <v-list-item v-if="rankingDeProductos.length === 0">
+                  <v-list-item-title>Aún no hay suficientes datos para generar un ranking.</v-list-item-title>
+                </v-list-item>
+              </v-list>
+            </v-card-text>
+          </v-card>
+        </v-col>
+      </v-row>
       </v-card-text>
   </v-card>
 </template>
@@ -75,7 +113,7 @@ import { ref, computed, onMounted } from 'vue';
 const { getRecords, savedRecords, isLoading } = useSavedQuotes();
 const { formatAsArs } = useFormatters();
 
-// --- LÓGICA PARA ESTADÍSTICAS GLOBALES (he renombrado las variables para mayor claridad) ---
+// --- LÓGICA PARA ESTADÍSTICAS GLOBALES ---
 const totalNumeroDeVentas = computed(() => 
   savedRecords.value.filter(r => r.type === 'VENTA').length
 );
@@ -89,37 +127,28 @@ const totalTasaDeConversion = computed(() => {
   return Math.round(rate * 10) / 10;
 });
 
-// ✅ --- INICIO: NUEVA LÓGICA PARA ANÁLISIS MENSUAL ---
-
-// Estado para guardar el mes seleccionado por el usuario (ej: '2025-06')
+// --- LÓGICA PARA ANÁLISIS MENSUAL ---
 const selectedMonth = ref<string | null>(null);
 
-// Computada para generar la lista de meses para el menú desplegable
 const availableMonths = computed(() => {
-  // 1. Creamos un Set para guardar los meses únicos (ej: '2025-06')
   const months = new Set<string>();
   savedRecords.value.forEach(record => {
-    // 2. Extraemos el año y el mes de la fecha
-    const month = record.quoteDate.substring(0, 7); // Extrae 'YYYY-MM'
+    const month = record.quoteDate.substring(0, 7);
     months.add(month);
   });
   
-  // 3. Convertimos el Set a un array, lo ordenamos del más nuevo al más viejo
   return Array.from(months).sort().reverse().map(monthStr => {
-    // 4. Le damos un formato legible para el usuario (ej: "Junio 2025")
     const [year, month] = monthStr.split('-');
     const date = new Date(Number(year), Number(month) - 1);
     const label = date.toLocaleString('es-AR', { month: 'long', year: 'numeric' });
     return {
-      title: `${label.charAt(0).toUpperCase()}${label.slice(1)}`, // Capitalizamos el mes
+      title: `${label.charAt(0).toUpperCase()}${label.slice(1)}`,
       value: monthStr
     };
   });
 });
 
-// Computada que calcula las estadísticas SÓLO para el mes seleccionado
 const statsForSelectedMonth = computed(() => {
-  // Si no hay un mes seleccionado, mostramos las estadísticas globales
   const recordsToAnalyze = selectedMonth.value
     ? savedRecords.value.filter(r => r.quoteDate.startsWith(selectedMonth.value!))
     : savedRecords.value;
@@ -135,15 +164,42 @@ const statsForSelectedMonth = computed(() => {
   };
 });
 
+
+// ✅ --- INICIO: LÓGICA PARA EL RANKING DE PRODUCTOS RESTAURADA ---
+const rankingDeProductos = computed(() => {
+  // 1. Creamos un mapa para contar cuántas veces aparece cada producto.
+  const productCounts = new Map<string, number>();
+
+  // 2. Recorremos todos los registros guardados (ventas y cotizaciones).
+  for (const record of savedRecords.value) {
+    for (const productName of record.products) {
+      const currentCount = productCounts.get(productName) || 0;
+      productCounts.set(productName, currentCount + 1);
+    }
+  }
+
+  // 3. Convertimos el mapa a un array para poder ordenarlo.
+  const sortedProducts = Array.from(productCounts.entries()).map(([name, count]) => ({
+    name,
+    count
+  }));
+
+  // 4. Ordenamos el array de mayor a menor.
+  sortedProducts.sort((a, b) => b.count - a.count);
+
+  // 5. Devolvemos los 10 productos más populares.
+  return sortedProducts.slice(0, 10);
+});
+// ✅ --- FIN: LÓGICA PARA EL RANKING DE PRODUCTOS RESTAURADA ---
+
+
 onMounted(async () => {
   if (savedRecords.value.length === 0) {
     await getRecords();
   }
-  // ✅ Hacemos que el mes más reciente se seleccione automáticamente al cargar
+  // Hacemos que el mes más reciente se seleccione automáticamente al cargar
   if (availableMonths.value.length > 0) {
     selectedMonth.value = availableMonths.value[0].value;
   }
 });
-
-// ✅ FIN: NUEVA LÓGICA PARA ANÁLISIS MENSUAL ---
 </script>
