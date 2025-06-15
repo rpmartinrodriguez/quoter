@@ -50,7 +50,12 @@
             <v-card class="mt-4 pa-5 elevation-4">
               <div class="text-overline">Ventas Realizadas</div>
               <div class="text-h4 font-weight-bold text-success">{{ formatAsArs(currentMonthStats.totalSales) }}</div>
-              <div class="text-caption">en {{ currentMonthStats.salesCount }} operaciones</div>
+              <div class="text-caption mb-3">en {{ currentMonthStats.salesCount }} operaciones</div>
+
+              <v-divider></v-divider>
+              
+              <div class="text-overline mt-3">Ticket Promedio</div>
+              <div class="text-h5 font-weight-bold">{{ formatAsArs(averageTicket) }}</div>
             </v-card>
           </div>
         </v-col>
@@ -61,7 +66,12 @@
             <v-card class="mt-4 pa-5 elevation-4" color="primary">
               <div class="text-overline">Objetivo de Ventas</div>
               <div class="text-h4 font-weight-bold">{{ formatAsArs(projection.projectedSalesAmount) }}</div>
-              <div class="text-caption">Crecimiento del {{ growthPercentage }}%</div>
+              <div class="text-caption mb-3">Crecimiento del {{ growthPercentage }}%</div>
+
+              <v-divider></v-divider>
+              
+              <div class="text-overline mt-3">Ticket Promedio Estimado</div>
+              <div class="text-h5 font-weight-bold">{{ formatAsArs(averageTicket) }}</div>
             </v-card>
           </div>
         </v-col>
@@ -70,16 +80,20 @@
            <div class="text-center">
             <div class="text-h6">Esfuerzo Estimado</div>
             <v-card class="mt-4 pa-5 elevation-4">
-              <div class="text-overline">Nuevas Ventas a Cerrar</div>
-              <div class="text-h4 font-weight-bold text-info">{{ projection.projectedSalesCount }}</div>
-              <v-divider class="my-3"></v-divider>
-              <div class="text-overline">Cotizaciones a Realizar</div>
-              <div class="text-h4 font-weight-bold text-info">{{ projection.projectedQuotesNeeded }}</div>
-              <div class="text-caption">(basado en tu tasa de conversión del {{ totalTasaDeConversion }}%)</div>
+              <div class="text-overline">Ventas a cerrar por Semana</div>
+              <div class="text-h5 font-weight-bold text-info">{{ actionableGoals.weeklySalesTarget }}</div>
+              <div class="text-caption mb-2"> ({{ projection.projectedSalesCount }} total mensual)</div>
+
+              <v-divider></v-divider>
+
+              <div class="text-overline mt-3">Cotizaciones a realizar por Día</div>
+              <div class="text-h5 font-weight-bold text-info">{{ actionableGoals.dailyQuotesTarget }}</div>
+              <div class="text-caption">(~{{ projection.projectedQuotesNeeded }} total mensual)</div>
             </v-card>
           </div>
         </v-col>
       </v-row>
+
       <v-row class="mt-8">
         <v-col>
           <v-card flat variant="outlined">
@@ -122,17 +136,17 @@ const { getRecords, savedRecords, isLoading } = useSavedQuotes();
 const { formatAsArs } = useFormatters();
 
 // --- ESTADO ---
-const growthPercentage = ref(10); // Objetivo de crecimiento por defecto: 10%
+const growthPercentage = ref(10);
 
-// --- LÓGICA DE FECHAS Y NOMBRES DE MESES ---
+// --- LÓGICA DE FECHAS ---
 const now = new Date();
-const currentMonthStr = now.toISOString().substring(0, 7); // Formato 'YYYY-MM'
+const currentMonthStr = now.toISOString().substring(0, 7);
 const currentMonthName = now.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 const nextMonthName = nextMonthDate.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
 
-// --- CÁLCULOS BASE (DATOS HISTÓRICOS Y DEL MES ACTUAL) ---
+// --- CÁLCULOS BASE ---
 const totalTasaDeConversion = computed(() => {
   const ventas = savedRecords.value.filter(r => r.type === 'VENTA').length;
   const cotizaciones = savedRecords.value.filter(r => r.type === 'COTIZACIÓN').length;
@@ -150,6 +164,15 @@ const currentMonthStats = computed(() => {
     salesRecords: sales,
   };
 });
+
+const averageTicket = computed(() => {
+  const salesCount = currentMonthStats.value.salesCount;
+  if (salesCount === 0) {
+    return 0;
+  }
+  return currentMonthStats.value.totalSales / salesCount;
+});
+
 
 // --- CÁLCULOS DE PROYECCIÓN ---
 const projection = computed(() => {
@@ -173,6 +196,19 @@ const projection = computed(() => {
     projectedSalesCount,
     projectedQuotesNeeded,
     additionalSalesNeeded,
+  };
+});
+
+const actionableGoals = computed(() => {
+  const WEEKS_IN_MONTH = 4.33;
+  const WORK_DAYS_IN_MONTH = 22;
+
+  const weeklySalesTarget = Math.ceil(projection.value.projectedSalesCount / WEEKS_IN_MONTH);
+  const dailyQuotesTarget = Math.ceil(projection.value.projectedQuotesNeeded / WORK_DAYS_IN_MONTH);
+
+  return {
+    weeklySalesTarget,
+    dailyQuotesTarget,
   };
 });
 
