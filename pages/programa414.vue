@@ -56,6 +56,7 @@
         :loading="isLoading"
         item-value="$id"
         hover
+        no-data-text="Aún no hay referidos cargados."
       >
         <template v-slot:item.loadDate="{ item }">
           <span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span>
@@ -68,7 +69,8 @@
             density="compact"
             hide-details
             variant="outlined"
-            :color="getStatusColor(item.status)"
+            :bg-color="getStatusColor(item.status)"
+            class="status-select"
           ></v-select>
         </template>
       </v-data-table>
@@ -78,15 +80,15 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 
-const { referrals, isLoading, addReferral, updateReferralStatus } = useReferrals();
+const { referrals, isLoading, addReferral, updateReferralStatus, getRecords } = useReferrals();
 const { showSnackbar } = useSnackbar();
 
 const sponsor = ref('');
 const isSaving = ref(false);
-const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peopleCount: undefined }]);
+const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peopleCount: undefined as number | undefined }]);
 
 const headers = [
   { title: 'Fecha de Carga', key: 'loadDate' },
@@ -125,23 +127,34 @@ const handleSaveAllReferrals = async () => {
       showSnackbar({ text: `Error al guardar a ${referral.referralName}`, color: 'error' });
     }
   }
+  
+  // ✅ LÍNEA CLAVE: Después de guardar todos, refrescamos la lista completa.
+  await getRecords();
 
   isSaving.value = false;
   if (successfulSaves > 0) {
     showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.` });
   }
   
-  // Limpiamos el formulario para la próxima carga
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
-  sponsor.value = ''; // Opcional: limpiar el sponsor también
+  sponsor.value = '';
 };
 
 const getStatusColor = (status: IReferral['status']) => {
   switch (status) {
-    case 'Demo': return 'success';
-    case 'No Acepta': return 'error';
-    case 'No Contesta': return 'warning';
-    default: return 'info';
+    case 'Demo': return 'green-lighten-4';
+    case 'No Acepta': return 'red-lighten-4';
+    case 'No Contesta': return 'orange-lighten-4';
+    default: return 'blue-lighten-4';
   }
 };
 </script>
+
+<style scoped>
+.referral-form-item {
+  border-color: rgba(0,0,0,0.12) !important;
+}
+.status-select {
+  border-radius: 4px;
+}
+</style>
