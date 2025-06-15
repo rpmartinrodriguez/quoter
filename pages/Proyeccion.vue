@@ -12,13 +12,12 @@
 
     <v-card-text v-else>
       <v-row>
-        <v-col cols="12">
-          <v-card class="pa-4" variant="outlined">
-            <label for="growth-slider" class="text-overline">
-              Establecer Objetivo de Crecimiento para el Próximo Mes
+        <v-col cols="12" md="6">
+          <v-card class="pa-4" variant="outlined" height="100%">
+            <label class="text-overline">
+              1. Objetivo de Crecimiento en Ventas
             </label>
             <v-slider
-              id="growth-slider"
               v-model="growthPercentage"
               :step="5"
               thumb-label
@@ -39,6 +38,34 @@
             </v-slider>
           </v-card>
         </v-col>
+        
+        <v-col cols="12" md="6">
+          <v-card class="pa-4" variant="outlined" height="100%">
+            <label class="text-overline">
+              2. Simular Mejora en Tasa de Conversión
+            </label>
+            <v-slider
+              v-model="targetConversionRate"
+              :step="1"
+              thumb-label
+              color="secondary"
+              class="mt-2"
+            >
+              <template v-slot:append>
+                <v-text-field
+                  v-model="targetConversionRate"
+                  type="number"
+                  style="width: 80px"
+                  density="compact"
+                  hide-details
+                  variant="outlined"
+                ></v-text-field>
+                <span class="ml-2">%</span>
+              </template>
+            </v-slider>
+            <div class="text-caption text-center text-grey">Tu tasa histórica es: {{ totalTasaDeConversion }}%</div>
+          </v-card>
+        </v-col>
       </v-row>
 
       <v-divider class="my-6"></v-divider>
@@ -51,9 +78,7 @@
               <div class="text-overline">Ventas Realizadas</div>
               <div class="text-h4 font-weight-bold text-success">{{ formatAsArs(currentMonthStats.totalSales) }}</div>
               <div class="text-caption mb-3">en {{ currentMonthStats.salesCount }} operaciones</div>
-
               <v-divider></v-divider>
-              
               <div class="text-overline mt-3">Ticket Promedio</div>
               <div class="text-h5 font-weight-bold">{{ formatAsArs(averageTicket) }}</div>
             </v-card>
@@ -67,9 +92,7 @@
               <div class="text-overline">Objetivo de Ventas</div>
               <div class="text-h4 font-weight-bold">{{ formatAsArs(projection.projectedSalesAmount) }}</div>
               <div class="text-caption mb-3">Crecimiento del {{ growthPercentage }}%</div>
-
               <v-divider></v-divider>
-              
               <div class="text-overline mt-3">Ticket Promedio Estimado</div>
               <div class="text-h5 font-weight-bold">{{ formatAsArs(averageTicket) }}</div>
             </v-card>
@@ -83,12 +106,10 @@
               <div class="text-overline">Ventas a cerrar por Semana</div>
               <div class="text-h5 font-weight-bold text-info">{{ actionableGoals.weeklySalesTarget }}</div>
               <div class="text-caption mb-2"> ({{ projection.projectedSalesCount }} total mensual)</div>
-
               <v-divider></v-divider>
-
               <div class="text-overline mt-3">Cotizaciones a realizar por Día</div>
               <div class="text-h5 font-weight-bold text-info">{{ actionableGoals.dailyQuotesTarget }}</div>
-              <div class="text-caption">(~{{ projection.projectedQuotesNeeded }} total mensual)</div>
+              <div class="text-caption">(proyectado con una tasa de conversión del {{ targetConversionRate }}%)</div>
             </v-card>
           </div>
         </v-col>
@@ -115,8 +136,7 @@
                     Ventas adicionales sugeridas (vendiste {{ product.currentCount }} este mes)
                   </v-list-item-subtitle>
                 </v-list-item>
-
-                <v-list-item v-if="projectedProductFocus.length === 0">
+                 <v-list-item v-if="projectedProductFocus.length === 0">
                   <v-list-item-title>No hay ventas registradas este mes para generar una proyección de productos.</v-list-item-title>
                 </v-list-item>
               </v-list>
@@ -137,6 +157,8 @@ const { formatAsArs } = useFormatters();
 
 // --- ESTADO ---
 const growthPercentage = ref(10);
+const targetConversionRate = ref(0);
+
 
 // --- LÓGICA DE FECHAS ---
 const now = new Date();
@@ -186,7 +208,7 @@ const projection = computed(() => {
   
   const additionalSalesNeeded = Math.max(0, projectedSalesCount - currentMonthStats.value.salesCount);
   
-  const conversionRate = totalTasaDeConversion.value / 100;
+  const conversionRate = targetConversionRate.value / 100;
   const projectedQuotesNeeded = conversionRate > 0 
     ? Math.ceil(projectedSalesCount / conversionRate)
     : projectedSalesCount;
@@ -245,7 +267,13 @@ const projectedProductFocus = computed(() => {
 
 
 // --- CARGA DE DATOS ---
-onMounted(() => {
-  getRecords();
+onMounted(async () => {
+  // Aseguramos que los datos estén cargados antes de setear el valor por defecto
+  if (savedRecords.value.length === 0) {
+    await getRecords();
+  }
+  
+  // Inicializamos el slider de conversión con el valor histórico real
+  targetConversionRate.value = totalTasaDeConversion.value;
 });
 </script>
