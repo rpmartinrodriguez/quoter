@@ -73,7 +73,6 @@
               Convertir a Venta
             </v-btn>
           </div>
-          
           <div v-else-if="item.isConverted">
             <v-tooltip location="top">
               <template v-slot:activator="{ props: tooltipProps }">
@@ -95,18 +94,20 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
+import { usePageTitle } from '~/composables/usePageTitle';
 
 // Usamos nuestros composables
 const { getRecords, savedRecords, isLoading, convertQuoteToSale } = useSavedQuotes();
 const { formatAsArs } = useFormatters();
+const { setTitle } = usePageTitle(); // ✅ Se importa el gestor de títulos
 
 // Estado para manejar la carga de la conversión
 const isConverting = ref(false);
 const selectedRecordId = ref<string | null>(null);
 
-// Encabezados para la tabla de datos, incluyendo la columna de Acciones
+// Encabezados para la tabla de datos
 const headers = [
   { title: 'Fecha', key: 'quoteDate', sortable: true },
   { title: 'Cliente', key: 'clientName', sortable: true },
@@ -124,7 +125,6 @@ const totalSales = computed(() =>
     .filter(r => r.type === 'VENTA')
     .reduce((sum, record) => sum + record.totalAmount, 0)
 );
-
 const totalQuotes = computed(() => 
   savedRecords.value
     .filter(r => r.type === 'COTIZACIÓN')
@@ -138,7 +138,6 @@ const handleConversion = async (record: ISavedRecord) => {
   try {
     await convertQuoteToSale(record.$id);
   } catch (error) {
-    // Aquí podrías mostrar una alerta de error si falla la conversión
     console.error("Fallo la conversión", error);
   } finally {
     isConverting.value = false;
@@ -146,5 +145,8 @@ const handleConversion = async (record: ISavedRecord) => {
   }
 };
 
-// El composable se encarga de la carga inicial de los datos
+// Cuando la página se carga, se actualiza el título
+onMounted(() => {
+  setTitle('Registros de Ventas y Cotizaciones');
+});
 </script>
