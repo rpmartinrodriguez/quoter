@@ -6,15 +6,8 @@
         Cargar Referidos del Programa 4/14
       </v-card-title>
       <v-card-text>
-        <v-text-field
-          v-model="sponsor"
-          label="Nombre del Sponsor (Cliente que refiere)*"
-          variant="outlined"
-          class="mb-4"
-        ></v-text-field>
-        
+        <v-text-field v-model="sponsor" label="Nombre del Sponsor (Cliente que refiere)*" variant="outlined" class="mb-4"></v-text-field>
         <v-divider></v-divider>
-
         <div v-for="(referral, index) in newReferralsList" :key="index" class="referral-form-item my-4 pa-4 border rounded">
           <div class="d-flex justify-space-between align-center mb-2">
             <h4 class="text-h6">Referido #{{ index + 1 }}</h4>
@@ -27,68 +20,40 @@
             <v-col cols="12" md="6"><v-text-field v-model.number="referral.peopleCount" label="Cantidad de Personas" type="number" density="compact" variant="outlined"></v-text-field></v-col>
           </v-row>
         </div>
-
         <div class="d-flex ga-4 mt-4">
-          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">
-            Añadir Otro Referido
-          </v-btn>
+          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">Añadir Otro Referido</v-btn>
           <v-spacer></v-spacer>
-          <v-btn 
-            @click="handleSaveAllReferrals" 
-            color="success" 
-            size="large" 
-            prepend-icon="mdi-content-save-all"
-            :disabled="!isFormValid"
-            :loading="isSaving"
-          >
-            Guardar Todos
-          </v-btn>
+          <v-btn @click="handleSaveAllReferrals" color="success" size="large" prepend-icon="mdi-content-save-all" :disabled="!isFormValid" :loading="isSaving">Guardar Todos</v-btn>
         </div>
       </v-card-text>
     </v-card>
-    
     <v-card>
       <v-card-title>Listado de Referidos Cargados</v-card-title>
-      <v-data-table
-        :headers="headers"
-        :items="referrals"
-        :loading="isLoading"
-        item-value="$id"
-        hover
-        no-data-text="Aún no hay referidos cargados."
-      >
+      <v-data-table :headers="headers" :items="referrals" :loading="isLoading" item-value="$id" hover no-data-text="Aún no hay referidos cargados.">
         <template v-slot:item.loadDate="{ item }">
           <span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span>
         </template>
         <template v-slot:item.status="{ item }">
-          <v-select
-            v-model="item.status"
-            :items="statusOptions"
-            @update:modelValue="(newStatus) => updateReferralStatus(item.$id, newStatus)"
-            density="compact"
-            hide-details
-            variant="outlined"
-            :bg-color="getStatusColor(item.status)"
-            class="status-select"
-          ></v-select>
+          <v-select v-model="item.status" :items="statusOptions" @update:modelValue="(newStatus) => updateReferralStatus(item.$id, newStatus)" density="compact" hide-details variant="outlined" :bg-color="getStatusColor(item.status)" class="status-select"></v-select>
         </template>
       </v-data-table>
     </v-card>
-
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
+import { usePageTitle } from '~/composables/usePageTitle';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
+import { useSnackbar } from '~/composables/useSnackbar';
 
 const { referrals, isLoading, addReferral, updateReferralStatus, getReferrals } = useReferrals();
 const { showSnackbar } = useSnackbar();
+const { setTitle } = usePageTitle();
 
 const sponsor = ref('');
 const isSaving = ref(false);
 const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peopleCount: undefined as number | undefined }]);
-
 const headers = [
   { title: 'Fecha de Carga', key: 'loadDate' },
   { title: 'Sponsor', key: 'sponsor' },
@@ -99,25 +64,15 @@ const headers = [
 ];
 const statusOptions = ['Pendiente', 'Demo', 'No Acepta', 'No Contesta'];
 
-const isFormValid = computed(() => {
-  return sponsor.value.trim() !== '' && newReferralsList.value.every(r => r.referralName.trim() !== '');
-});
-
-const addReferralForm = () => {
-  newReferralsList.value.push({ referralName: '', phone: '', occupation: '', peopleCount: undefined });
-};
-
-const removeReferralForm = (index: number) => {
-  newReferralsList.value.splice(index, 1);
-};
+const isFormValid = computed(() => sponsor.value.trim() !== '' && newReferralsList.value.every(r => r.referralName.trim() !== ''));
+const addReferralForm = () => { newReferralsList.value.push({ referralName: '', phone: '', occupation: '', peopleCount: undefined }); };
+const removeReferralForm = (index: number) => { newReferralsList.value.splice(index, 1); };
 
 const handleSaveAllReferrals = async () => {
   if (!isFormValid.value) return;
-
   isSaving.value = true;
   const sponsorName = sponsor.value;
   let successfulSaves = 0;
-  
   for (const referral of newReferralsList.value) {
     try {
       await addReferral({ ...referral, sponsor: sponsorName });
@@ -126,19 +81,12 @@ const handleSaveAllReferrals = async () => {
       showSnackbar({ text: `Error al guardar a ${referral.referralName}: ${error.message}`, color: 'error' });
     }
   }
-  
-  // ✅ LÍNEA CLAVE: Después de guardar todos, refrescamos la lista completa.
   if (successfulSaves > 0) {
     await getReferrals();
     showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.` });
   }
-
   isSaving.value = false;
-  
-  // Limpiamos el formulario para la próxima carga
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
-  // Opcional: Descomentá la siguiente línea si también querés limpiar el sponsor
-  // sponsor.value = ''; 
 };
 
 const getStatusColor = (status: IReferral['status']) => {
@@ -149,13 +97,13 @@ const getStatusColor = (status: IReferral['status']) => {
     default: return 'blue-lighten-4';
   }
 };
+
+onMounted(() => {
+  setTitle('Programa 4/14');
+});
 </script>
 
 <style scoped>
-.referral-form-item {
-  border-color: rgba(0,0,0,0.12) !important;
-}
-.status-select {
-  border-radius: 4px;
-}
+.referral-form-item { border-color: rgba(0,0,0,0.12) !important; }
+.status-select { border-radius: 4px; }
 </style>
