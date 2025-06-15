@@ -1,4 +1,3 @@
-// pages/programa414.vue
 <template>
   <div>
     <v-card class="mb-8">
@@ -80,7 +79,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 
 const { referrals, isLoading, addReferral, updateReferralStatus, getRecords } = useReferrals();
@@ -123,12 +122,18 @@ const handleSaveAllReferrals = async () => {
     try {
       await addReferral({ ...referral, sponsor: sponsorName });
       successfulSaves++;
-    } catch (error) {
-      showSnackbar({ text: `Error al guardar a ${referral.referralName}`, color: 'error' });
+    } catch (error: any) { // Se añade ':any' para acceder a 'message'
+      
+      // ✅ --- LÍNEA CLAVE PARA DEPURAR --- ✅
+      // En lugar de una notificación silenciosa, mostramos una alerta con el error exacto.
+      alert(`ERROR al intentar guardar a "${referral.referralName}":\n\n${error.message}`);
+
+      // Detenemos el proceso si hay un error para no seguir intentando.
+      isSaving.value = false;
+      return; 
     }
   }
   
-  // ✅ LÍNEA CLAVE: Después de guardar todos, refrescamos la lista completa.
   await getRecords();
 
   isSaving.value = false;
