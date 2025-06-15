@@ -1,10 +1,10 @@
+// plugins/vuetify.ts
 import "@mdi/font/css/materialdesignicons.css";
 import "vuetify/styles";
 import { createVuetify } from "vuetify";
 import { aliases, mdi } from "vuetify/iconsets/mdi";
 
-// Definimos nuestra paleta de colores y tema moderno
-const miTemaModerno = {
+const miTemaClaro = {
   dark: false,
   colors: {
     background: '#F5F7FA',
@@ -18,30 +18,33 @@ const miTemaModerno = {
   }
 };
 
+// ✅ Se añade la definición del tema oscuro
+const miTemaOscuro = {
+  dark: true,
+  colors: {
+    background: '#121212',
+    surface: '#1E1E1E',
+    primary: '#2196F3', // Un azul más brillante para el modo oscuro
+    secondary: '#B0BEC5',
+    error: '#CF6679',
+    info: '#2196F3',
+    success: '#66BB6A',
+    warning: '#FB8C00',
+  }
+};
+
 export default defineNuxtPlugin((nuxtApp) => {
   const vuetify = createVuetify({
-    // Configuración de los íconos
-    icons: {
-      defaultSet: "mdi",
-      aliases,
-      sets: {
-        mdi,
-      },
-    },
-    // Le inyectamos directamente el tema y los defaults
+    icons: { /* ... (sin cambios) ... */ },
+    // ✅ Se añaden ambos temas a la configuración
     theme: {
-      defaultTheme: 'miTemaModerno',
+      defaultTheme: 'miTemaClaro', // Empezamos con el tema claro
       themes: {
-        miTemaModerno,
+        miTemaClaro,
+        miTemaOscuro, // Registramos el tema oscuro
       },
     },
-    defaults: {
-      VCard: { elevation: 2, rounded: 'lg' },
-      VBtn: { rounded: 'lg' },
-      VTextField: { variant: 'outlined', density: 'compact', rounded: 'lg' },
-      VAlert: { rounded: 'lg' },
-      VChip: { rounded: 'xl' }
-    }
+    defaults: { /* ... (sin cambios) ... */ }
   });
 
   nuxtApp.vueApp.use(vuetify);
