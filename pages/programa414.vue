@@ -79,10 +79,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed } from 'vue';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 
-const { referrals, isLoading, addReferral, updateReferralStatus, getRecords } = useReferrals();
+const { referrals, isLoading, addReferral, updateReferralStatus, getReferrals } = useReferrals();
 const { showSnackbar } = useSnackbar();
 
 const sponsor = ref('');
@@ -122,27 +122,23 @@ const handleSaveAllReferrals = async () => {
     try {
       await addReferral({ ...referral, sponsor: sponsorName });
       successfulSaves++;
-    } catch (error: any) { // Se añade ':any' para acceder a 'message'
-      
-      // ✅ --- LÍNEA CLAVE PARA DEPURAR --- ✅
-      // En lugar de una notificación silenciosa, mostramos una alerta con el error exacto.
-      alert(`ERROR al intentar guardar a "${referral.referralName}":\n\n${error.message}`);
-
-      // Detenemos el proceso si hay un error para no seguir intentando.
-      isSaving.value = false;
-      return; 
+    } catch (error: any) {
+      showSnackbar({ text: `Error al guardar a ${referral.referralName}: ${error.message}`, color: 'error' });
     }
   }
   
-  await getRecords();
-
-  isSaving.value = false;
+  // ✅ LÍNEA CLAVE: Después de guardar todos, refrescamos la lista completa.
   if (successfulSaves > 0) {
+    await getReferrals();
     showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.` });
   }
+
+  isSaving.value = false;
   
+  // Limpiamos el formulario para la próxima carga
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
-  sponsor.value = '';
+  // Opcional: Descomentá la siguiente línea si también querés limpiar el sponsor
+  // sponsor.value = ''; 
 };
 
 const getStatusColor = (status: IReferral['status']) => {
