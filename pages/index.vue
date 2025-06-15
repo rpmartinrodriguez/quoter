@@ -1,6 +1,7 @@
 <script lang="ts" setup>
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, watch, onMounted } from 'vue'; // Se añade onMounted
 import { useWindowSize } from "@vueuse/core";
+import { usePageTitle } from '~/composables/usePageTitle'; // Se importa el gestor de títulos
 
 // --- INTERFACES ---
 interface Loading {
@@ -42,6 +43,13 @@ const dataTableHeight = computed(() => windowHeight.value - 196);
 
 const { list: products, selected } = useProducts(); 
 const selectedPs = ref<Product[]>([]);
+
+// ✅ Lógica para establecer el título de la página
+const { setTitle } = usePageTitle();
+onMounted(() => {
+  setTitle('Calculadora Principal');
+});
+
 
 watch(selectedPs, (newVal) => {
   selected.value = [...newVal];
@@ -87,12 +95,8 @@ const handleDeselect = (productToDeselect: Product) => {
 
 
 // --- VALIDACIONES DE ESTADO ---
-// Se mantienen los composables porque pueden ser necesarios en otras partes o en el futuro
-const { deposits } = useDeposit();
-const { quotes } = useQuote();
 const config = useRuntimeConfig();
 
-// Se deja solo la validación de configuración, que es la más importante
 const configOk = computed(() =>
   !!config.public.endpoint &&
   !!config.public.project &&
@@ -145,10 +149,6 @@ const configOk = computed(() =>
               v-model="search"
               label="Buscar"
               prepend-inner-icon="mdi-magnify"
-              variant="outlined"
-              density="compact"
-              hide-details
-              single-line
             ></v-text-field>
           </template>
 
@@ -161,17 +161,17 @@ const configOk = computed(() =>
               :loading="loadings.products"
             >
               <template v-slot:item="{ item }">
-                <tr :style="{ 'background-color': isSelected(item) ? item?.color : '' }">
+                <tr :style="{ 'background-color': isSelected(item as Product) ? item.color : '' }">
                   <td class="check-cell">
                     <v-checkbox-btn
-                      :model-value="isSelected(item)"
+                      :model-value="isSelected(item as Product)"
                       color="primary"
-                      @update:model-value="toggleSelect(item)"
+                      @update:model-value="toggleSelect(item as Product)"
                     />
                   </td>
-                  <td>{{ item?.detail }}</td>
-                  <td>{{ item?.composition }}</td>
-                  <td>{{ formatAsArs(item?.price) }}</td>
+                  <td>{{ item.detail }}</td>
+                  <td>{{ item.composition }}</td>
+                  <td>{{ formatAsArs(item.price) }}</td>
                 </tr>
               </template>
             </v-data-table-virtual>
