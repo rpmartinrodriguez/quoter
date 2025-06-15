@@ -27,6 +27,12 @@
         ></v-list-item>
 
         <v-list-item
+          prepend-icon="mdi-account-group"
+          title="Programa 4/14"
+          to="/programa414"
+        ></v-list-item>
+
+        <v-list-item
           prepend-icon="mdi-format-list-checks"
           title="Cotizaciones"
           to="/cotizaciones"
@@ -49,7 +55,7 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue';
-// ✅ Se elimina la llamada a useAuth()
+// El script se mantiene simple y estable
 const drawer = ref(false);
 </script>
 
