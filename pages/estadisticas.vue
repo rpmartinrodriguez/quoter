@@ -144,18 +144,24 @@
           </v-card>
         </v-col>
       </v-row>
-
     </v-card-text>
   </v-card>
 </template>
 
 <script lang="ts" setup>
 import { ref, computed, onMounted } from 'vue';
+import { usePageTitle } from '~/composables/usePageTitle';
+import { useSavedQuotes } from '~/composables/useSavedQuotes';
+import { useReferrals } from '~/composables/useReferrals';
+import { useFormatters } from '~/composables/useFormatters';
+
 const { getRecords, savedRecords, isLoading } = useSavedQuotes();
 const { getReferrals, referrals, isLoading: isLoadingReferrals } = useReferrals();
 const { formatAsArs } = useFormatters();
+const { setTitle } = usePageTitle();
 
-// --- LÓGICA PARA ESTADÍSTICAS GLOBALES ---
+const selectedMonth = ref<string | null>(null);
+
 const totalNumeroDeVentas = computed(() => savedRecords.value.filter(r => r.type === 'VENTA').length);
 const totalNumeroDeCotizaciones = computed(() => savedRecords.value.filter(r => r.type === 'COTIZACIÓN').length);
 const totalTasaDeConversion = computed(() => {
@@ -164,13 +170,9 @@ const totalTasaDeConversion = computed(() => {
   return Math.round((totalNumeroDeVentas.value / totalRegistros) * 100);
 });
 
-// --- LÓGICA PARA ANÁLISIS MENSUAL ---
-const selectedMonth = ref<string | null>(null);
 const availableMonths = computed(() => {
   const months = new Set<string>();
-  savedRecords.value.forEach(record => {
-    months.add(record.quoteDate.substring(0, 7));
-  });
+  savedRecords.value.forEach(record => { months.add(record.quoteDate.substring(0, 7)); });
   return Array.from(months).sort().reverse().map(monthStr => {
     const [year, month] = monthStr.split('-');
     const date = new Date(Number(year), Number(month) - 1);
@@ -178,10 +180,9 @@ const availableMonths = computed(() => {
     return { title: `${label.charAt(0).toUpperCase()}${label.slice(1)}`, value: monthStr };
   });
 });
+
 const statsForSelectedMonth = computed(() => {
-  const recordsToAnalyze = selectedMonth.value
-    ? savedRecords.value.filter(r => r.quoteDate.startsWith(selectedMonth.value!))
-    : savedRecords.value;
+  const recordsToAnalyze = selectedMonth.value ? savedRecords.value.filter(r => r.quoteDate.startsWith(selectedMonth.value!)) : savedRecords.value;
   const sales = recordsToAnalyze.filter(r => r.type === 'VENTA');
   const quotes = recordsToAnalyze.filter(r => r.type === 'COTIZACIÓN');
   return {
@@ -192,7 +193,6 @@ const statsForSelectedMonth = computed(() => {
   };
 });
 
-// --- LÓGICA PARA RANKING DE PRODUCTOS ---
 const rankingDeProductos = computed(() => {
   const productCounts = new Map<string, number>();
   for (const record of savedRecords.value) {
@@ -206,7 +206,6 @@ const rankingDeProductos = computed(() => {
   return sortedProducts.slice(0, 10);
 });
 
-// --- LÓGICA PARA ESTADÍSTICAS DE REFERIDOS ---
 const referralStats = computed(() => {
   const stats = { demo: 0, noAcepta: 0, noContesta: 0, pendiente: 0, total: referrals.value.length };
   for (const referral of referrals.value) {
@@ -220,12 +219,10 @@ const referralStats = computed(() => {
   return stats;
 });
 
-// --- CARGA INICIAL DE DATOS ---
 onMounted(async () => {
-  // Aseguramos que ambos sets de datos se carguen
+  setTitle('Mi Estadística');
   await getRecords();
   await getReferrals(); 
-  
   if (availableMonths.value.length > 0) {
     selectedMonth.value = availableMonths.value[0].value;
   }
