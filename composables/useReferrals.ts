@@ -20,7 +20,7 @@ const isLoading = ref(false);
 export const useReferrals = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  const COLLECTION_ID = config.public.cReferrals; // Usaremos esta nueva variable
+  const COLLECTION_ID = config.public.cReferrals;
 
   const getReferrals = async () => {
     isLoading.value = true;
@@ -37,6 +37,7 @@ export const useReferrals = () => {
   };
 
   const addReferral = async (data: Omit<IReferral, '$id' | 'loadDate' | 'status'>) => {
+    // ✅ Esta función ahora solo tiene una responsabilidad: crear el documento.
     try {
       const doc = {
         ...data,
@@ -53,7 +54,6 @@ export const useReferrals = () => {
   const updateReferralStatus = async (id: string, status: IReferral['status']) => {
     try {
       await databases.updateDocument(config.public.database, COLLECTION_ID, id, { status });
-      // Actualizamos el registro localmente para una respuesta instantánea
       const index = referrals.value.findIndex(r => r.$id === id);
       if (index !== -1) {
         referrals.value[index].status = status;
@@ -65,7 +65,7 @@ export const useReferrals = () => {
   };
 
   // Carga inicial de datos
-  if (referrals.value.length === 0) {
+  if (referrals.value.length === 0 && !isLoading.value) {
     getReferrals();
   }
 
