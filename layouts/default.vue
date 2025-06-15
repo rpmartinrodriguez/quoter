@@ -1,7 +1,7 @@
 <template>
   <v-app>
     <v-app-bar app color="primary" density="compact">
-      <v-toolbar-title>Calculadora de Cotizaciones</v-toolbar-title>
+      <v-toolbar-title>{{ pageTitle }}</v-toolbar-title>
       <v-spacer></v-spacer>
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
     </v-app-bar>
@@ -55,8 +55,13 @@
 
 <script lang="ts" setup>
 import { ref } from 'vue';
-// El script se mantiene simple y estable
+// ✅ Importamos nuestro nuevo gestor de títulos
+import { usePageTitle } from '~/composables/usePageTitle';
+
+// Estado para controlar el menú lateral
 const drawer = ref(false);
+// ✅ Obtenemos la variable reactiva del título para usarla en el template
+const { pageTitle } = usePageTitle();
 </script>
 
 <style>
