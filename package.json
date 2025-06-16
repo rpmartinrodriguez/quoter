@@ -18,10 +18,10 @@
     "read-excel-file": "^5.8.5",
     "uniqolor": "^1.1.1",
     "uuid": "^10.0.0",
-    "vue": "latest",
-    "vue-router": "latest",
     "apexcharts": "^3.50.0",
-    "vue3-apexcharts": "^1.5.3"
+    "vue3-apexcharts": "^1.5.3",
+    "vue": "^3.4.29",
+    "vue-router": "^4.3.3"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
