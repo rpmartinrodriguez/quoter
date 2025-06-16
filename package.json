@@ -18,8 +18,6 @@
     "read-excel-file": "^5.8.5",
     "uniqolor": "^1.1.1",
     "uuid": "^10.0.0",
-    "apexcharts": "^3.49.1",
-    "vue3-apexcharts": "^1.5.3",
     "vue": "^3.4.29",
     "vue-router": "^4.3.3"
   },
