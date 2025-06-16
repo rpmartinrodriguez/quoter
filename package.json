@@ -19,7 +19,9 @@
     "uniqolor": "^1.1.1",
     "uuid": "^10.0.0",
     "vue": "latest",
-    "vue-router": "latest"
+    "vue-router": "latest",
+    "apexcharts": "^3.50.0",
+    "vue3-apexcharts": "^1.5.3"
   },
   "devDependencies": {
     "@types/uuid": "^10.0.0",
