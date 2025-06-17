@@ -3,10 +3,39 @@
     <v-col>
       <v-card flat>
         <v-card-title>
+          <v-icon start>mdi-cog</v-icon>
           Configuración
         </v-card-title>
-        <v-card-text>
-          <v-row class="mt-5">
+
+        <v-card-text v-if="!isVerified" class="d-flex justify-center align-center" style="min-height: 60vh;">
+          <v-sheet width="450" class="mx-auto pa-8 text-center" rounded="lg" elevation="2">
+            <v-icon size="64" color="primary" class="mb-4">mdi-shield-lock</v-icon>
+            <h4 class="text-h6 mb-4">Acceso Restringido</h4>
+            <p class="text-body-2 text-medium-emphasis mb-4">
+              Para modificar la configuración de la calculadora, por favor ingresá la contraseña de administrador.
+            </p>
+            <v-text-field
+              v-model="passwordInput"
+              label="Contraseña"
+              type="password"
+              variant="outlined"
+              @keydown.enter="checkPassword"
+            ></v-text-field>
+            <v-alert v-if="errorMsg" type="error" density="compact" class="mt-2 text-left">{{ errorMsg }}</v-alert>
+            <v-btn
+              @click="checkPassword"
+              :loading="isLoading"
+              color="primary"
+              block
+              class="mt-4"
+              size="large"
+            >
+              Verificar
+            </v-btn>
+          </v-sheet>
+        </v-card-text>
+        <v-card-text v-else>
+          <v-row class="mt-1">
             <v-col cols="12" md="6" class="pa-5">
               <h3 class="text-center mb-5">Opciones de Depósito</h3>
               <div class="d-flex flex-column ga-5">
@@ -38,13 +67,13 @@
             </v-col>
           </v-row>
         </v-card-text>
-      </v-card>
+        </v-card>
     </v-col>
   </v-row>
 </template>
 
 <script lang="ts" setup>
-import { onMounted } from 'vue';
+import { ref, onMounted } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useDeposit } from '~/composables/useDeposit';
 import { useQuote } from '~/composables/useQuote';
@@ -53,7 +82,47 @@ const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const { setTitle } = usePageTitle();
 
+// ✅ --- INICIO: LÓGICA DE VERIFICACIÓN DE CONTRASEÑA ---
+const isVerified = ref(false);
+const passwordInput = ref('');
+const isLoading = ref(false);
+const errorMsg = ref('');
+
+const checkPassword = async () => {
+  if (!passwordInput.value) {
+    errorMsg.value = 'Por favor, ingresá una contraseña.';
+    return;
+  }
+  isLoading.value = true;
+  errorMsg.value = '';
+  try {
+    // Usamos $fetch para llamar a nuestra API interna de forma segura
+    const { verified } = await $fetch('/api/auth/verify-password', {
+      method: 'POST',
+      body: { password: passwordInput.value }
+    });
+
+    if (verified) {
+      isVerified.value = true;
+      // Guardamos en la sesión del navegador que el usuario ya se verificó
+      // para no volver a preguntar en esta sesión.
+      sessionStorage.setItem('settings_verified', 'true');
+    } else {
+      errorMsg.value = 'Contraseña incorrecta.';
+    }
+  } catch (err) {
+    errorMsg.value = 'Ocurrió un error al verificar. Intentá de nuevo.';
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 onMounted(() => {
   setTitle('Configuración');
+  // Al cargar la página, revisamos si el usuario ya se había verificado en esta sesión.
+  if (sessionStorage.getItem('settings_verified') === 'true') {
+    isVerified.value = true;
+  }
 });
+// ✅ --- FIN: LÓGICA DE VERIFICACIÓN ---
 </script>
