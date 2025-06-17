@@ -34,6 +34,7 @@
             </v-btn>
           </v-sheet>
         </v-card-text>
+
         <v-card-text v-else>
           <v-row class="mt-1">
             <v-col cols="12" md="6" class="pa-5">
@@ -48,7 +49,6 @@
                 <DepositForm label="Nuevo Depósito" :show-clear="true" />
               </div>
             </v-col>
-
             <v-col cols="12" md="6" class="pa-5">
               <h3 class="text-center mb-5">Opciones de Cuotas</h3>
               <div class="d-flex flex-column ga-5">
@@ -67,7 +67,8 @@
             </v-col>
           </v-row>
         </v-card-text>
-        </v-card>
+        
+      </v-card>
     </v-col>
   </v-row>
 </template>
@@ -82,12 +83,12 @@ const { deposits } = useDeposit();
 const { quotes } = useQuote();
 const { setTitle } = usePageTitle();
 
-// ✅ --- INICIO: LÓGICA DE VERIFICACIÓN DE CONTRASEÑA ---
 const isVerified = ref(false);
 const passwordInput = ref('');
 const isLoading = ref(false);
 const errorMsg = ref('');
 
+// ✅ --- INICIO: FUNCIÓN checkPassword MODIFICADA ---
 const checkPassword = async () => {
   if (!passwordInput.value) {
     errorMsg.value = 'Por favor, ingresá una contraseña.';
@@ -96,33 +97,35 @@ const checkPassword = async () => {
   isLoading.value = true;
   errorMsg.value = '';
   try {
-    // Usamos $fetch para llamar a nuestra API interna de forma segura
+    // Hacemos la llamada a nuestra API interna más explícita y robusta,
+    // asegurando que el cuerpo de la petición sea un JSON válido.
     const { verified } = await $fetch('/api/auth/verify-password', {
       method: 'POST',
-      body: { password: passwordInput.value }
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ password: passwordInput.value })
     });
 
     if (verified) {
       isVerified.value = true;
-      // Guardamos en la sesión del navegador que el usuario ya se verificó
-      // para no volver a preguntar en esta sesión.
       sessionStorage.setItem('settings_verified', 'true');
     } else {
       errorMsg.value = 'Contraseña incorrecta.';
     }
   } catch (err) {
     errorMsg.value = 'Ocurrió un error al verificar. Intentá de nuevo.';
+    console.error(err);
   } finally {
     isLoading.value = false;
   }
 };
+// ✅ --- FIN: FUNCIÓN checkPassword MODIFICADA ---
 
 onMounted(() => {
   setTitle('Configuración');
-  // Al cargar la página, revisamos si el usuario ya se había verificado en esta sesión.
   if (sessionStorage.getItem('settings_verified') === 'true') {
     isVerified.value = true;
   }
 });
-// ✅ --- FIN: LÓGICA DE VERIFICACIÓN ---
 </script>
