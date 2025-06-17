@@ -27,17 +27,62 @@
         </div>
       </v-card-text>
     </v-card>
+    
     <v-card>
       <v-card-title>Listado de Referidos Cargados</v-card-title>
-      <v-data-table :headers="headers" :items="referrals" :loading="isLoading" item-value="$id" hover no-data-text="Aún no hay referidos cargados.">
+      
+      <v-card-text>
+        <v-row class="mb-4">
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="selectedSponsor"
+              :items="uniqueSponsors"
+              label="Filtrar por Sponsor"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+            ></v-select>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-select
+              v-model="selectedStatus"
+              :items="statusOptions"
+              label="Filtrar por Estado"
+              variant="outlined"
+              density="compact"
+              clearable
+              hide-details
+            ></v-select>
+          </v-col>
+        </v-row>
+      </v-card-text>
+      <v-data-table
+        :headers="headers"
+        :items="filteredReferrals"
+        :loading="isLoading"
+        item-value="$id"
+        hover
+        no-data-text="No hay referidos que coincidan con los filtros."
+      >
         <template v-slot:item.loadDate="{ item }">
           <span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span>
         </template>
         <template v-slot:item.status="{ item }">
-          <v-select v-model="item.status" :items="statusOptions" @update:modelValue="(newStatus) => updateReferralStatus(item.$id, newStatus)" density="compact" hide-details variant="outlined" :bg-color="getStatusColor(item.status)" class="status-select"></v-select>
+          <v-select
+            v-model="item.status"
+            :items="statusOptions"
+            @update:modelValue="(newStatus) => updateReferralStatus(item.$id, newStatus)"
+            density="compact"
+            hide-details
+            variant="outlined"
+            :bg-color="getStatusColor(item.status)"
+            class="status-select"
+          ></v-select>
         </template>
       </v-data-table>
     </v-card>
+
   </div>
 </template>
 
@@ -54,6 +99,32 @@ const { setTitle } = usePageTitle();
 const sponsor = ref('');
 const isSaving = ref(false);
 const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peopleCount: undefined as number | undefined }]);
+
+// ✅ INICIO: NUEVO ESTADO Y LÓGICA PARA LOS FILTROS
+const selectedSponsor = ref<string | null>(null);
+const selectedStatus = ref<string | null>(null);
+
+// Computada para generar una lista de sponsors únicos para el dropdown
+const uniqueSponsors = computed(() => {
+  const sponsors = new Set(referrals.value.map(r => r.sponsor));
+  return Array.from(sponsors).sort();
+});
+
+// La computada principal que filtra la lista de referidos
+const filteredReferrals = computed(() => {
+  let items = referrals.value;
+
+  if (selectedSponsor.value) {
+    items = items.filter(r => r.sponsor === selectedSponsor.value);
+  }
+  if (selectedStatus.value) {
+    items = items.filter(r => r.status === selectedStatus.value);
+  }
+
+  return items;
+});
+// ✅ FIN: NUEVO ESTADO Y LÓGICA PARA LOS FILTROS
+
 const headers = [
   { title: 'Fecha de Carga', key: 'loadDate' },
   { title: 'Sponsor', key: 'sponsor' },
@@ -81,12 +152,15 @@ const handleSaveAllReferrals = async () => {
       showSnackbar({ text: `Error al guardar a ${referral.referralName}: ${error.message}`, color: 'error' });
     }
   }
+  
   if (successfulSaves > 0) {
     await getReferrals();
     showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.` });
   }
+
   isSaving.value = false;
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
+  sponsor.value = '';
 };
 
 const getStatusColor = (status: IReferral['status']) => {
@@ -100,6 +174,8 @@ const getStatusColor = (status: IReferral['status']) => {
 
 onMounted(() => {
   setTitle('Programa 4/14');
+  // Nos aseguramos de que los datos se carguen al visitar la página
+  getReferrals();
 });
 </script>
 
