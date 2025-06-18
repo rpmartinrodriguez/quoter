@@ -42,7 +42,7 @@
     <v-snackbar
       v-model="snackbar.show.value"
       :color="snackbar.color.value"
-      timeout="3000"
+      :timeout="3000"
       location="top right"
       variant="elevated"
     >
@@ -61,7 +61,7 @@ import { ref } from 'vue';
 import { useTheme } from 'vuetify';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSnackbar } from '~/composables/useSnackbar';
-import { useAuth } from '~/composables/useAuth'; // ✅ Se importa la lógica de autenticación
+import { useAuth } from '~/composables/useAuth';
 
 // Lógica del menú lateral
 const drawer = ref(false);
@@ -78,13 +78,13 @@ const toggleTheme = () => {
 // Lógica para las notificaciones
 const snackbar = useSnackbar();
 
-// ✅ Obtenemos el usuario y la función de logout para usar en el template
+// Lógica de autenticación
 const { user, logout } = useAuth();
 </script>
 
 <style>
+/* Los estilos no cambian, ahora el fondo lo maneja el tema de Vuetify */
 .main-content {
   min-height: 100vh;
-  /* El color de fondo ahora lo maneja el tema de Vuetify */
 }
 </style>
