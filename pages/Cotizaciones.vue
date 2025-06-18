@@ -20,7 +20,7 @@
           </v-alert>
         </v-col>
       </v-row>
-
+      
       <v-data-table
         :headers="headers"
         :items="filteredRecords"
@@ -39,13 +39,9 @@
               </v-btn>
             </template>
             <v-list dense>
-              <v-list-item @click="selectedClient = null">
-                <v-list-item-title>Mostrar Todos</v-list-item-title>
-              </v-list-item>
+              <v-list-item @click="selectedClient = null" title="Mostrar Todos"></v-list-item>
               <v-divider></v-divider>
-              <v-list-item v-for="client in uniqueClients" :key="client" @click="selectedClient = client">
-                <v-list-item-title>{{ client }}</v-list-item-title>
-              </v-list-item>
+              <v-list-item v-for="client in uniqueClients" :key="client" :title="client" @click="selectedClient = client"></v-list-item>
             </v-list>
           </v-menu>
         </template>
@@ -59,17 +55,28 @@
               </v-btn>
             </template>
             <v-list dense>
-              <v-list-item @click="selectedType = null">
-                <v-list-item-title>Mostrar Todos</v-list-item-title>
-              </v-list-item>
+              <v-list-item @click="selectedType = null" title="Mostrar Todos"></v-list-item>
               <v-divider></v-divider>
-              <v-list-item v-for="typeOption in ['VENTA', 'COTIZACIÓN']" :key="typeOption" @click="selectedType = typeOption">
-                <v-list-item-title>{{ typeOption }}</v-list-item-title>
-              </v-list-item>
+              <v-list-item v-for="typeOption in ['VENTA', 'COTIZACIÓN']" :key="typeOption" :title="typeOption" @click="selectedType = typeOption"></v-list-item>
             </v-list>
           </v-menu>
         </template>
         
+        <template v-slot:header.actions="{ column }">
+          <v-menu offset-y>
+            <template v-slot:activator="{ props: menuProps }">
+              <v-btn v-bind="menuProps" variant="text" size="small">
+                {{ column.title }}
+                <v-icon end :color="selectedAction ? 'primary' : ''">mdi-filter-variant</v-icon>
+              </v-btn>
+            </template>
+            <v-list dense>
+              <v-list-item @click="selectedAction = null" title="Todas las Acciones"></v-list-item>
+              <v-divider></v-divider>
+              <v-list-item v-for="action in actionOptions" :key="action" :title="action" @click="selectedAction = action"></v-list-item>
+            </v-list>
+          </v-menu>
+        </template>
         <template v-slot:item.quoteDate="{ item }">
           <span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span>
         </template>
@@ -125,14 +132,17 @@ const { setTitle } = usePageTitle();
 const isConverting = ref(false);
 const selectedRecordId = ref<string | null>(null);
 
-// ✅ INICIO: LÓGICA Y ESTADO PARA LOS FILTROS
+// ✅ INICIO: LÓGICA Y ESTADO PARA LOS FILTROS (ahora con 3 filtros)
 const selectedClient = ref<string | null>(null);
 const selectedType = ref<'VENTA' | 'COTIZACIÓN' | null>(null);
+const selectedAction = ref<'Convertible' | 'Ya Convertida' | null>(null);
 
 const uniqueClients = computed(() => {
   const clients = new Set(savedRecords.value.map(r => r.clientName));
   return Array.from(clients).sort();
 });
+
+const actionOptions = ['Convertible', 'Ya Convertida'];
 
 const filteredRecords = computed(() => {
   let items = savedRecords.value;
@@ -141,6 +151,14 @@ const filteredRecords = computed(() => {
   }
   if (selectedType.value) {
     items = items.filter(r => r.type === selectedType.value);
+  }
+  // ✅ Se añade la lógica para el nuevo filtro de acciones
+  if (selectedAction.value) {
+    if (selectedAction.value === 'Convertible') {
+      items = items.filter(r => r.type === 'COTIZACIÓN');
+    } else if (selectedAction.value === 'Ya Convertida') {
+      items = items.filter(r => r.isConverted === true);
+    }
   }
   return items;
 });
@@ -157,17 +175,8 @@ const headers = [
   { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },
 ];
 
-const totalSales = computed(() => 
-  savedRecords.value
-    .filter(r => r.type === 'VENTA')
-    .reduce((sum, record) => sum + record.totalAmount, 0)
-);
-
-const totalQuotes = computed(() => 
-  savedRecords.value
-    .filter(r => r.type === 'COTIZACIÓN')
-    .reduce((sum, record) => sum + record.totalAmount, 0)
-);
+const totalSales = computed(() => savedRecords.value.filter(r => r.type === 'VENTA').reduce((sum, record) => sum + record.totalAmount, 0));
+const totalQuotes = computed(() => savedRecords.value.filter(r => r.type === 'COTIZACIÓN').reduce((sum, record) => sum + record.totalAmount, 0));
 
 const handleConversion = async (record: ISavedRecord) => {
   selectedRecordId.value = record.$id;
