@@ -74,11 +74,7 @@
 
     <br /><br />
 
-    <div
-      id="quote-results"
-      v-if="showQuotes"
-      class="custom-calculations-wrapper"
-    >
+    <div v-if="showQuotes" class="custom-calculations-wrapper">
       <div class="result-card amount-to-finance">
         <p><strong>Monto a financiar</strong></p>
         <p class="mt-2">{{ formatAsArs(toFinance || 0) }}</p>
@@ -111,7 +107,7 @@
       Indique un depósito para calcular las cuotas
     </div>
   </div>
-  
+
   <v-dialog v-model="dialogs.typeSelection" persistent max-width="450">
     <v-card class="text-center pa-5" rounded="lg">
       <v-icon size="64" color="primary" class="mb-4">mdi-content-save-question-outline</v-icon>
@@ -120,32 +116,13 @@
         La información se copió al portapapeles. ¿Cómo deseas guardar este registro?
       </p>
       <div class="d-flex flex-column ga-3">
-        <v-btn 
-          color="success" 
-          size="large" 
-          variant="flat" 
-          @click="handleTypeSelected('VENTA')" 
-          prepend-icon="mdi-check-decagram"
-          block
-        >
+        <v-btn color="success" size="large" variant="flat" @click="handleTypeSelected('VENTA')" prepend-icon="mdi-check-decagram" block>
           Confirmar como Venta
         </v-btn>
-        <v-btn 
-          color="info" 
-          size="large" 
-          variant="tonal" 
-          @click="handleTypeSelected('COTIZACIÓN')" 
-          prepend-icon="mdi-file-document-outline"
-          block
-        >
+        <v-btn color="info" size="large" variant="tonal" @click="handleTypeSelected('COTIZACIÓN')" prepend-icon="mdi-file-document-outline" block>
           Guardar como Cotización
         </v-btn>
-        <v-btn 
-          variant="text" 
-          size="small" 
-          @click="dialogs.typeSelection = false" 
-          class="mt-2"
-        >
+        <v-btn variant="text" size="small" @click="dialogs.typeSelection = false" class="mt-2">
           No Guardar
         </v-btn>
       </div>
@@ -161,13 +138,13 @@
         <v-container>
           <v-row>
             <v-col cols="12">
-              <v-text-field v-model="clientData.name" label="Nombre y Apellido*" required></v-text-field>
+              <v-text-field v-model="clientData.name" label="Nombre y Apellido*" required variant="outlined"></v-text-field>
             </v-col>
             <v-col cols="12">
-              <v-text-field v-model="clientData.address" label="Dirección"></v-text-field>
+              <v-text-field v-model="clientData.address" label="Dirección" variant="outlined"></v-text-field>
             </v-col>
             <v-col cols="12">
-              <v-text-field v-model="clientData.phone" label="Celular"></v-text-field>
+              <v-text-field v-model="clientData.phone" label="Celular" variant="outlined"></v-text-field>
             </v-col>
           </v-row>
         </v-container>
@@ -176,13 +153,7 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="secondary" text @click="closeAndResetForms">Cancelar</v-btn>
-        <v-btn 
-          color="primary" 
-          variant="flat" 
-          @click="handleSaveTransaction" 
-          :disabled="!clientData.name"
-          :loading="isSaving"
-        >
+        <v-btn color="primary" variant="flat" @click="handleSaveTransaction" :disabled="!clientData.name" :loading="isSaving">
           Guardar
         </v-btn>
       </v-card-actions>
@@ -194,6 +165,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useClipboard } from "@vueuse/core";
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
+import { useSnackbar } from '~/composables/useSnackbar';
 
 // --- PROPS E INTERFACES ---
 interface Product {
@@ -214,93 +186,139 @@ const props = defineProps<{
 }>();
 const emit = defineEmits<{ (e: 'deselect-product', product: Product): void; }>();
 
+
 // --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 const { deposits } = useDeposit();
 const { saveRecord, isLoading: isSaving } = useSavedQuotes();
+const { showSnackbar } = useSnackbar(); // ✅ Se añade el composable de notificaciones
+
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
+
 const dialogs = reactive({
   typeSelection: false,
   clientForm: false,
 });
-const clientData = reactive({ name: '', address: '', phone: '' });
+const clientData = reactive({
+  name: '',
+  address: '',
+  phone: '',
+});
 const transactionType = ref<'VENTA' | 'COTIZACIÓN'>('COTIZACIÓN');
 const lastQuoteCopied = ref<ICalculatedQuote | null>(null);
+
 
 // --- LÓGICA DE CÁLCULO ---
 const depositOptions = computed(() => {
   const baseTotal = customTotal.value ?? props.total;
   if (!baseTotal || !deposits.value || deposits.value.length === 0) return [];
-  return deposits.value.map(dep => ({
-    percentage: dep.percentage,
-    amount: (baseTotal * dep.percentage) / 100,
-    label: `${dep.percentage}%`
-  })).sort((a, b) => b.percentage - a.percentage);
+  
+  return deposits.value.map(dep => {
+    const amount = (baseTotal * dep.percentage) / 100;
+    return {
+      percentage: dep.percentage,
+      amount,
+      label: `${dep.percentage}%`
+    };
+  }).sort((a, b) => b.percentage - a.percentage);
 });
+
 const toFinance = computed(() => {
   if (!customDeposit.value) return 0;
   const baseTotal = customTotal.value ?? props.total;
   if (customDeposit.value > baseTotal) return 0;
   return baseTotal - customDeposit.value;
 });
+
 const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
   if (toFinance.value <= 0 || !quotes.value) return [];
-  return quotes.value.map((q) => ({
-    $id: q.$id,
-    quantity: q.quantity,
-    percentage: q.percentage,
-    amount: formatAsArs(Math.round((toFinance.value * q.percentage) / 100)),
-  }));
+  return quotes.value.map((q) => {
+    const amount = (toFinance.value * q.percentage) / 100;
+    return {
+      $id: q.$id,
+      quantity: q.quantity,
+      percentage: q.percentage,
+      amount: formatAsArs(Math.round(amount)),
+    };
+  });
 });
+
 const showQuotes = computed(() => calculatedQuotes.value.length > 0);
 
+
 // --- MÉTODOS ---
-const handleDeselect = (productToDeselect: Product) => { emit('deselect-product', productToDeselect); };
-const selectDeposit = (amount: number) => { customDeposit.value = Math.round(amount); };
+const handleDeselect = (productToDeselect: Product) => {
+  emit('deselect-product', productToDeselect);
+};
+
+const selectDeposit = (amount: number) => {
+  customDeposit.value = Math.round(amount);
+};
+
 const parseNumericInput = (value: string): number | undefined => {
   const num = parseFloat(value);
   return isNaN(num) ? undefined : num;
 };
-const setCustomTotal = (value: string) => { customTotal.value = parseNumericInput(value); };
-const setCustomDeposit = (value: string) => { customDeposit.value = parseNumericInput(value); };
 
-// --- LÓGICA DE COPIADO Y GUARDADO ---
+const setCustomTotal = (value: string) => {
+  customTotal.value = parseNumericInput(value);
+};
+
+const setCustomDeposit = (value: string) => {
+  customDeposit.value = parseNumericInput(value);
+};
+
 const source = ref("");
 const { copy } = useClipboard({ source });
+
 const handleCopyClick = (quote: ICalculatedQuote) => {
   lastQuoteCopied.value = quote;
   const productNames = props.products.map(p => p.detail);
   const depositStr = formatAsArs(customDeposit.value || 0);
   const quoteAmount = quote.amount;
+
   source.value = `Hola!!
 Quería agradecerte por la excelente decisión que tomaste. Te hacemos un breve resumen para que tengas toda la información a mano:
+
 \t•\t*Pieza${productNames.length > 1 ? `s: ${productNames.join(", ")}` : `: ${productNames[0]}`}*
 \t•\tDepósito inicial: ${depositStr}
 \t•\tCantidad de cuotas: ${quote.quantity}
 \t•\tValor de cada cuota: ${quoteAmount}
+
 Estamos seguros de que esta decisión cumplirá con todas tus expectativas. Cualquier consulta o duda que tengas, no dudes en contactarnos. ¡Gracias por confiar en nosotros! Royal Prestige!
+
 A continuación, unos links de interés:
+
 \t•\tCurado de Ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
 \t•\tRecetas: https://www.royalprestige.com/ar/inspiracion/recetas
 \t•\tInstagram: https://www.instagram.com/royalprestigeargoficial`;
+
   copy(source.value);
+
+  // ✅ Se añade la llamada a la notificación
+  showSnackbar({ text: '¡Texto copiado al portapapeles!', color: 'info' });
+
   dialogs.typeSelection = true;
 };
+
 const handleTypeSelected = (type: 'VENTA' | 'COTIZACIÓN') => {
   transactionType.value = type;
   dialogs.typeSelection = false;
   dialogs.clientForm = true;
 };
+
 const closeAndResetForms = () => {
   dialogs.clientForm = false;
   clientData.name = '';
   clientData.address = '';
   clientData.phone = '';
 };
+
 const handleSaveTransaction = async () => {
   if (!clientData.name || !lastQuoteCopied.value) return;
+
   const recordToSave: ISavedRecord = {
     clientName: clientData.name,
     clientAddress: clientData.address,
@@ -312,20 +330,162 @@ const handleSaveTransaction = async () => {
     depositAmount: customDeposit.value || 0,
     installmentsInfo: `${lastQuoteCopied.value.quantity} cuotas de ${lastQuoteCopied.value.amount}`
   };
+
   try {
     await saveRecord(recordToSave);
-  } catch (e) {
-    console.error("Error al guardar registro:", e);
-  }
-  finally {
+    // ✅ Se añade la notificación de éxito
+    showSnackbar({ text: 'Registro guardado con éxito', color: 'success' });
+  } catch(e: any) {
+    // ✅ Se añade la notificación de error
+    showSnackbar({ text: `Error al guardar: ${e.message}`, color: 'error' });
+  } finally {
     closeAndResetForms();
   }
 };
 </script>
 
 <style>
-/* Los estilos se mantienen igual que en la versión que funcionaba */
-.custom-calc-container { /* ... */ }
-.setup-wrapper { /* ... */ }
-/* ... etc ... */
+.custom-calc-container {
+  font-family: 'Inter', sans-serif;
+  --blue-primary: #0d6efd;
+  --blue-light-bg: #f4f8ff;
+  --blue-dark-text: #212529;
+  --blue-secondary-text: #6c757d;
+  --blue-border: #dee2e6;
+  --white: #ffffff;
+  --shadow-color: rgba(13, 110, 253, 0.1);
+}
+.setup-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1.5rem;
+  color: var(--blue-dark-text);
+}
+.setup-item {
+  background-color: var(--white);
+  border: 1px solid var(--blue-border);
+  border-radius: 12px;
+  padding: 1.25rem;
+  transition: box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+.setup-item:focus-within {
+  box-shadow: 0 4px 15px var(--shadow-color);
+  border-color: var(--blue-primary);
+}
+.setup-item b {
+  font-weight: 500;
+  color: var(--blue-secondary-text);
+  font-size: 0.85rem;
+}
+.price-display {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--blue-dark-text);
+}
+.v-chip {
+  transition: all 0.2s ease-in-out;
+}
+.v-chip:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.1);
+}
+.product-details-wrapper {
+  margin-bottom: 1rem;
+  flex-grow: 1;
+}
+.product-list-title {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--blue-primary) !important;
+  font-weight: 700 !important;
+  font-size: 0.9rem !important;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.product-list {
+  list-style-type: none;
+  padding-left: 0;
+  margin: 0;
+  max-height: 150px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue-primary) var(--blue-light-bg);
+}
+.product-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.9rem;
+  padding: 0.35rem 0.25rem;
+  border-bottom: 1px solid var(--blue-border);
+}
+.product-list li:last-child {
+  border-bottom: none;
+}
+.product-list li span {
+  flex-grow: 1;
+  word-break: break-word;
+  padding-right: 8px;
+}
+.divider {
+  border: none;
+  border-top: 1px solid var(--blue-border);
+  margin: 0 0 1rem 0;
+}
+.custom-calculations-wrapper {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
+.result-card {
+  background-color: var(--blue-light-bg);
+  border: 1px solid var(--blue-border);
+  border-radius: 12px;
+  padding: 1.25rem 1rem;
+  text-align: center;
+  transition: all 0.3s ease;
+}
+.result-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 25px var(--shadow-color);
+  border-color: var(--blue-primary);
+}
+.result-card.amount-to-finance {
+  background-color: var(--blue-dark-text);
+  color: var(--white);
+}
+.result-card.amount-to-finance p, 
+.result-card.amount-to-finance strong {
+  color: var(--white);
+}
+.result-card p {
+  margin: 0;
+  color: var(--blue-dark-text);
+}
+.result-card p strong {
+  color: var(--blue-secondary-text);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.result-card .mt-2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin-top: 0.5rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+.no-quotes-message {
+  color: var(--blue-secondary-text);
+  font-style: italic;
+}
+@media (max-width: 768px) {
+  .setup-wrapper, .custom-calculations-wrapper {
+    grid-template-columns: 1fr;
+  }
+}
 </style>
