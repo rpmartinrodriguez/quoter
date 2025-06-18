@@ -1,4 +1,3 @@
-// composables/useAuth.ts
 import { ref, onMounted } from 'vue';
 import type { Models } from 'appwrite';
 
