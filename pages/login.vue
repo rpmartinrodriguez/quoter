@@ -1,4 +1,3 @@
-// pages/login.vue
 <template>
   <v-container class="fill-height" fluid>
     <v-row align="center" justify="center">
@@ -42,14 +41,12 @@
 </template>
 
 <script lang="ts" setup>
-// Le decimos a Nuxt que esta página use el layout "empty" que acabamos de crear.
 definePageMeta({
   layout: 'empty',
 });
 
 const { login } = useAuth();
 const router = useRouter();
-
 const email = ref('');
 const password = ref('');
 const errorMsg = ref('');
@@ -64,7 +61,7 @@ const handleLogin = async () => {
   errorMsg.value = '';
   try {
     await login(email.value, password.value);
-    router.push('/'); // Si el login es exitoso, redirigimos a la calculadora
+    router.push('/');
   } catch (error: any) {
     errorMsg.value = 'Email o contraseña incorrectos.';
   } finally {
