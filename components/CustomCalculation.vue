@@ -74,7 +74,11 @@
 
     <br /><br />
 
-    <div v-if="showQuotes" class="custom-calculations-wrapper">
+    <div
+      id="quote-results"
+      v-if="showQuotes"
+      class="custom-calculations-wrapper"
+    >
       <div class="result-card amount-to-finance">
         <p><strong>Monto a financiar</strong></p>
         <p class="mt-2">{{ formatAsArs(toFinance || 0) }}</p>
@@ -116,13 +120,32 @@
         La información se copió al portapapeles. ¿Cómo deseas guardar este registro?
       </p>
       <div class="d-flex flex-column ga-3">
-        <v-btn color="success" size="large" variant="flat" @click="handleTypeSelected('VENTA')" prepend-icon="mdi-check-decagram" block>
+        <v-btn 
+          color="success" 
+          size="large" 
+          variant="flat" 
+          @click="handleTypeSelected('VENTA')" 
+          prepend-icon="mdi-check-decagram"
+          block
+        >
           Confirmar como Venta
         </v-btn>
-        <v-btn color="info" size="large" variant="tonal" @click="handleTypeSelected('COTIZACIÓN')" prepend-icon="mdi-file-document-outline" block>
+        <v-btn 
+          color="info" 
+          size="large" 
+          variant="tonal" 
+          @click="handleTypeSelected('COTIZACIÓN')" 
+          prepend-icon="mdi-file-document-outline"
+          block
+        >
           Guardar como Cotización
         </v-btn>
-        <v-btn variant="text" size="small" @click="dialogs.typeSelection = false" class="mt-2">
+        <v-btn 
+          variant="text" 
+          size="small" 
+          @click="dialogs.typeSelection = false" 
+          class="mt-2"
+        >
           No Guardar
         </v-btn>
       </div>
@@ -138,13 +161,23 @@
         <v-container>
           <v-row>
             <v-col cols="12">
-              <v-text-field v-model="clientData.name" label="Nombre y Apellido*" required variant="outlined"></v-text-field>
+              <v-text-field
+                v-model="clientData.name"
+                label="Nombre y Apellido*"
+                required
+              ></v-text-field>
             </v-col>
             <v-col cols="12">
-              <v-text-field v-model="clientData.address" label="Dirección" variant="outlined"></v-text-field>
+              <v-text-field
+                v-model="clientData.address"
+                label="Dirección"
+              ></v-text-field>
             </v-col>
             <v-col cols="12">
-              <v-text-field v-model="clientData.phone" label="Celular" variant="outlined"></v-text-field>
+              <v-text-field
+                v-model="clientData.phone"
+                label="Celular"
+              ></v-text-field>
             </v-col>
           </v-row>
         </v-container>
@@ -153,7 +186,13 @@
       <v-card-actions>
         <v-spacer></v-spacer>
         <v-btn color="secondary" text @click="closeAndResetForms">Cancelar</v-btn>
-        <v-btn color="primary" variant="flat" @click="handleSaveTransaction" :disabled="!clientData.name" :loading="isSaving">
+        <v-btn 
+          color="primary" 
+          variant="flat" 
+          @click="handleSaveTransaction" 
+          :disabled="!clientData.name"
+          :loading="isSaving"
+        >
           Guardar
         </v-btn>
       </v-card-actions>
@@ -192,7 +231,7 @@ const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 const { deposits } = useDeposit();
 const { saveRecord, isLoading: isSaving } = useSavedQuotes();
-const { showSnackbar } = useSnackbar(); // ✅ Se añade el composable de notificaciones
+const { showSnackbar } = useSnackbar();
 
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
@@ -297,7 +336,6 @@ A continuación, unos links de interés:
 
   copy(source.value);
 
-  // ✅ Se añade la llamada a la notificación
   showSnackbar({ text: '¡Texto copiado al portapapeles!', color: 'info' });
 
   dialogs.typeSelection = true;
@@ -333,10 +371,14 @@ const handleSaveTransaction = async () => {
 
   try {
     await saveRecord(recordToSave);
-    // ✅ Se añade la notificación de éxito
-    showSnackbar({ text: 'Registro guardado con éxito', color: 'success' });
+    
+    // ✅ Aquí está el texto de la notificación actualizado como pediste
+    showSnackbar({ 
+      text: '¡Guardado! Ya podés enviar por WhatsApp el resumen al cliente. ¡Solo pegá!', 
+      color: 'success' 
+    });
+
   } catch(e: any) {
-    // ✅ Se añade la notificación de error
     showSnackbar({ text: `Error al guardar: ${e.message}`, color: 'error' });
   } finally {
     closeAndResetForms();
