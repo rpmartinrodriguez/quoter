@@ -1,70 +1,82 @@
-import { ref } from 'vue';
-import { ID, Query } from 'appwrite';
+import { ref, watch } from 'vue';
+import { ID, Query, Permission, Role } from 'appwrite';
 
-// Interfaz para tipar los registros guardados. Debe coincidir con tu colección de Appwrite.
+// ✅ Se añade el campo `userId` a la interfaz
 export interface ISavedRecord {
-  $id: string; // Appwrite añade este campo automáticamente
+  $id: string;
   clientName: string;
   clientAddress?: string;
   clientPhone?: string;
   type: 'VENTA' | 'COTIZACIÓN';
-  quoteDate: string; // Se guarda como un string en formato ISO
+  quoteDate: string;
   products: string[];
   totalAmount: number;
   depositAmount: number;
   installmentsInfo: string;
   isConverted?: boolean;
   conversionDate?: string;
+  userId: string; // <-- NUEVO
 }
 
-// Se define el estado fuera de la función para que sea un "singleton",
-// es decir, un estado único y compartido por toda la aplicación.
 const savedRecords = ref<ISavedRecord[]>([]);
 const isLoading = ref(false);
 
 export const useSavedQuotes = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
+  const { user } = useAuth(); // ✅ Obtenemos el usuario actual
   const COLLECTION_ID = config.public.cRecords;
 
-  /**
-   * Obtiene todos los registros de la base de datos y los guarda en el estado local.
-   */
   const getRecords = async () => {
-    if (isLoading.value) return; 
+    if (!user.value) {
+      savedRecords.value = [];
+      return;
+    }
     isLoading.value = true;
     try {
       const response = await databases.listDocuments(
         config.public.database,
         COLLECTION_ID,
         [
-          Query.orderDesc('$createdAt') // Ordenamos por fecha de creación, que es más seguro y automático.
+          // ✅ FILTRAMOS por el ID del usuario conectado
+          Query.equal("userId", user.value.$id),
+          Query.orderDesc('$createdAt')
         ]
       );
       savedRecords.value = response.documents as unknown as ISavedRecord[];
     } catch (error) {
       console.error("❌ Error al obtener los registros:", error);
-      savedRecords.value = []; // En caso de error, vaciamos la lista para evitar datos corruptos.
+      savedRecords.value = [];
     } finally {
       isLoading.value = false;
     }
   };
 
-  /**
-   * Guarda un nuevo registro (Venta o Cotización) en la base de datos.
-   * @param record - El objeto con todos los datos a guardar.
-   */
-  const saveRecord = async (record: Omit<ISavedRecord, '$id'>) => {
+  const saveRecord = async (record: Omit<ISavedRecord, '$id' | 'userId'>) => {
+    if (!user.value) return; // No se puede guardar si no hay usuario
+    const userId = user.value.$id;
+    
     isLoading.value = true;
     try {
+      // ✅ Creamos el documento final añadiendo el userId
+      const docToSave = {
+        ...record,
+        userId: userId,
+      };
+
       await databases.createDocument(
         config.public.database,
         COLLECTION_ID,
         ID.unique(),
-        record
+        docToSave,
+        // ✅ AÑADIMOS permisos para que solo el creador pueda acceder
+        [
+          Permission.read(Role.user(userId)),
+          Permission.update(Role.user(userId)),
+          Permission.delete(Role.user(userId)),
+        ]
       );
       console.log("✅ Registro guardado exitosamente!");
-      // Después de guardar, refrescamos la lista para que la UI se actualice.
       await getRecords();
     } catch (error) {
       console.error("❌ Error al guardar el registro:", error);
@@ -74,10 +86,9 @@ export const useSavedQuotes = () => {
     }
   };
 
-  /**
-   * Actualiza un registro existente para cambiar su tipo y marcarlo como convertido.
-   */
   const convertQuoteToSale = async (recordId: string) => {
+    // La seguridad aquí ya está garantizada por los permisos del documento.
+    // Un usuario no podrá llamar a esta función sobre un documento que no le pertenece.
     isLoading.value = true;
     try {
       const updateData = {
@@ -85,18 +96,9 @@ export const useSavedQuotes = () => {
         isConverted: true,
         conversionDate: new Date().toISOString()
       };
-      
-      await databases.updateDocument(
-        config.public.database,
-        COLLECTION_ID,
-        recordId,
-        updateData
-      );
-      
+      await databases.updateDocument(config.public.database, COLLECTION_ID, recordId, updateData);
       console.log(`✅ Registro ${recordId} convertido a VENTA.`);
-      // Después de convertir, también refrescamos la lista.
       await getRecords();
-
     } catch (error) {
       console.error(`❌ Error al convertir el registro ${recordId}:`, error);
       throw error;
@@ -105,12 +107,16 @@ export const useSavedQuotes = () => {
     }
   };
 
-  // Lógica de auto-inicialización para la primera carga de la app.
-  if (savedRecords.value.length === 0 && !isLoading.value) {
-    getRecords();
-  }
+  // ✅ Reemplazamos la carga inicial por un 'watch' que reacciona al estado del usuario
+  watch(user, (newUser) => {
+    if (newUser) {
+      getRecords();
+    } else {
+      savedRecords.value = [];
+    }
+  }, { immediate: true });
 
-  // Se exponen el estado y las funciones para que puedan ser usados en cualquier componente.
+
   return {
     isLoading,
     savedRecords,
