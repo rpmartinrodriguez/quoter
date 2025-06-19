@@ -1,6 +1,7 @@
 import { ref } from 'vue';
 import { ID, Query } from 'appwrite';
 
+// Se quita 'userId' de la interfaz
 export interface ISavedRecord {
   $id: string;
   clientName: string;
@@ -28,6 +29,7 @@ export const useSavedQuotes = () => {
     if (isLoading.value) return; 
     isLoading.value = true;
     try {
+      // Se quita el filtro Query.equal('userId', ...)
       const response = await databases.listDocuments(
         config.public.database,
         COLLECTION_ID,
@@ -45,9 +47,9 @@ export const useSavedQuotes = () => {
   const saveRecord = async (record: Omit<ISavedRecord, '$id'>) => {
     isLoading.value = true;
     try {
+      // La lógica ya no añade 'userId' ni permisos especiales
       await databases.createDocument(config.public.database, COLLECTION_ID, ID.unique(), record);
-      console.log("✅ Registro guardado exitosamente!");
-      await getRecords(); // ✅ Refresca la lista después de guardar
+      await getRecords();
     } catch (error) {
       console.error("❌ Error al guardar el registro:", error);
       throw error;
@@ -61,8 +63,7 @@ export const useSavedQuotes = () => {
     try {
       const updateData = { type: 'VENTA', isConverted: true, conversionDate: new Date().toISOString() };
       await databases.updateDocument(config.public.database, COLLECTION_ID, recordId, updateData);
-      console.log(`✅ Registro ${recordId} convertido a VENTA.`);
-      await getRecords(); // ✅ Refresca la lista después de convertir
+      await getRecords();
     } catch (error) {
       console.error(`❌ Error al convertir el registro ${recordId}:`, error);
       throw error;
