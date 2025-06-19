@@ -111,7 +111,7 @@
       Indique un depósito para calcular las cuotas
     </div>
   </div>
-  
+
   <v-dialog v-model="dialogs.typeSelection" persistent max-width="450">
     <v-card class="text-center pa-5" rounded="lg">
       <v-icon size="64" color="primary" class="mb-4">mdi-content-save-question-outline</v-icon>
@@ -204,6 +204,7 @@
 import { ref, reactive, computed } from 'vue';
 import { useClipboard } from "@vueuse/core";
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
+import { useSnackbar } from '~/composables/useSnackbar';
 
 // --- PROPS E INTERFACES ---
 interface Product {
@@ -230,6 +231,7 @@ const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 const { deposits } = useDeposit();
 const { saveRecord, isLoading: isSaving } = useSavedQuotes();
+const { showSnackbar } = useSnackbar();
 
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
@@ -333,6 +335,9 @@ A continuación, unos links de interés:
 \t•\tInstagram: https://www.instagram.com/royalprestigeargoficial`;
 
   copy(source.value);
+
+  showSnackbar({ text: '¡Texto copiado al portapapeles!', color: 'info' });
+
   dialogs.typeSelection = true;
 };
 
@@ -366,17 +371,22 @@ const handleSaveTransaction = async () => {
 
   try {
     await saveRecord(recordToSave);
-  } catch (e) {
-    console.error("Error al guardar el registro", e)
-  }
-  finally {
+    
+    // ✅ Aquí está el texto de la notificación actualizado como pediste
+    showSnackbar({ 
+      text: '¡Guardado! Ya podés enviar por WhatsApp el resumen al cliente. ¡Solo pegá!', 
+      color: 'success' 
+    });
+
+  } catch(e: any) {
+    showSnackbar({ text: `Error al guardar: ${e.message}`, color: 'error' });
+  } finally {
     closeAndResetForms();
   }
 };
 </script>
 
 <style>
-/* Los estilos se mantienen igual que en la versión que funcionaba */
 .custom-calc-container {
   font-family: 'Inter', sans-serif;
   --blue-primary: #0d6efd;
