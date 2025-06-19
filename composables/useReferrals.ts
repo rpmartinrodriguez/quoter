@@ -1,5 +1,5 @@
 import { ref, watch } from 'vue';
-import { ID, Query, Permission, Role } from "appwrite";
+import { ID, Query, Permission, Role } from 'appwrite';
 
 // ✅ Se añade el campo `userId` a la interfaz
 export interface IReferral {
@@ -11,7 +11,7 @@ export interface IReferral {
   peopleCount?: number;
   status: 'Pendiente' | 'Demo' | 'No Acepta' | 'No Contesta';
   loadDate: string;
-  userId: string; // <-- NUEVO
+  userId: string; // <-- NUEVO Y CLAVE
 }
 
 const referrals = ref<IReferral[]>([]);
@@ -24,32 +24,30 @@ export const useReferrals = () => {
   const COLLECTION_ID = config.public.cReferrals;
 
   const getReferrals = async () => {
-    if (!user.value) {
+    if (!user.value) { // Si no hay usuario, no hay nada que buscar
       referrals.value = [];
       return;
     }
     isLoading.value = true;
     try {
-      const response = await databases.listDocuments(
-        config.public.database,
-        COLLECTION_ID,
-        [
-          // ✅ FILTRAMOS por el ID del usuario conectado
-          Query.equal("userId", user.value.$id),
-          Query.orderDesc('loadDate')
-        ]
-      );
+      const response = await databases.listDocuments(config.public.database, COLLECTION_ID, [
+        // ✅ FILTRAMOS por el ID del usuario conectado
+        Query.equal("userId", user.value.$id),
+        Query.orderDesc('loadDate')
+      ]);
       referrals.value = response.documents as unknown as IReferral[];
     } catch (error) {
       console.error("❌ Error al obtener los referidos:", error);
+      referrals.value = [];
     } finally {
       isLoading.value = false;
     }
   };
 
   const addReferral = async (data: Omit<IReferral, '$id' | 'loadDate' | 'status' | 'userId'>) => {
-    if (!user.value) return; // No se puede crear si no hay usuario
+    if (!user.value) throw new Error("No hay un usuario autenticado para asignar el referido.");
     const userId = user.value.$id;
+    
     try {
       const doc = {
         ...data,
@@ -58,9 +56,9 @@ export const useReferrals = () => {
         userId: userId, // ✅ AÑADIMOS el userId al guardar
       };
       await databases.createDocument(
-        config.public.database,
-        COLLECTION_ID,
-        ID.unique(),
+        config.public.database, 
+        COLLECTION_ID, 
+        ID.unique(), 
         doc,
         // ✅ AÑADIMOS permisos para que solo el creador pueda acceder
         [
@@ -76,6 +74,8 @@ export const useReferrals = () => {
   };
   
   const updateReferralStatus = async (id: string, status: IReferral['status']) => {
+    // La seguridad aquí la dan los permisos a nivel de documento.
+    // Un usuario no podrá actualizar un referido que no le pertenece.
     try {
       await databases.updateDocument(config.public.database, COLLECTION_ID, id, { status });
       const index = referrals.value.findIndex(r => r.$id === id);
@@ -88,7 +88,7 @@ export const useReferrals = () => {
     }
   };
 
-  // ✅ Reemplazamos la carga inicial por un 'watch' que reacciona al estado del usuario
+  // ✅ Se reemplaza la carga inicial por un 'watch' que reacciona al login/logout
   watch(user, (newUser) => {
     if (newUser) {
       getReferrals();
