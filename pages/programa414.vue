@@ -49,7 +49,6 @@
     
     <v-card>
       <v-card-title>Listado de Referidos Cargados</v-card-title>
-      
       <v-card-text>
         <v-row class="mb-4">
           <v-col cols="12" md="4">
@@ -83,7 +82,7 @@
         :loading="isLoading"
         item-value="$id"
         hover
-        no-data-text="No hay referidos que coincidan con los filtros."
+        no-data-text="Aún no hay referidos cargados."
       >
         <template v-slot:header.sponsor="{ column }">
           <v-menu offset-y>
@@ -149,6 +148,7 @@ const { setTitle } = usePageTitle();
 const sponsor = ref('');
 const isSaving = ref(false);
 const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peopleCount: undefined as number | undefined }]);
+
 const selectedSponsor = ref<string | null>(null);
 const selectedStatus = ref<string | null>(null);
 
@@ -182,22 +182,29 @@ const isFormValid = computed(() => sponsor.value.trim() !== '' && newReferralsLi
 const addReferralForm = () => { newReferralsList.value.push({ referralName: '', phone: '', occupation: '', peopleCount: undefined }); };
 const removeReferralForm = (index: number) => { newReferralsList.value.splice(index, 1); };
 
+// ✅ --- INICIO: FUNCIÓN DE GUARDADO MODIFICADA CON ALERTA DE DIAGNÓSTICO ---
 const handleSaveAllReferrals = async () => {
   if (!isFormValid.value) return;
+
   isSaving.value = true;
   const sponsorName = sponsor.value;
   let successfulSaves = 0;
+  
   for (const referral of newReferralsList.value) {
     try {
       await addReferral({ ...referral, sponsor: sponsorName });
       successfulSaves++;
     } catch (error: any) {
-      showSnackbar({ text: `Error al guardar a ${referral.referralName}: ${error.message}`, color: 'error' });
+      // En lugar de una notificación silenciosa, mostramos una alerta con el error exacto.
+      alert(`ERROR al intentar guardar a "${referral.referralName}":\n\n${error.message}`);
+      
+      // Detenemos el proceso para no seguir intentando si hay un error.
+      isSaving.value = false;
+      return; 
     }
   }
   
   if (successfulSaves > 0) {
-    // ✅ LÍNEA CLAVE: Después de guardar, refrescamos la lista completa.
     await getReferrals();
     showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.` });
   }
@@ -206,6 +213,7 @@ const handleSaveAllReferrals = async () => {
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
   sponsor.value = '';
 };
+// ✅ --- FIN: FUNCIÓN DE GUARDADO MODIFICADA ---
 
 const getStatusColor = (status: IReferral['status']) => {
   switch (status) {
