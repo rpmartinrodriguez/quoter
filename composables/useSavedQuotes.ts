@@ -1,7 +1,6 @@
-import { ref, watch } from 'vue';
-import { ID, Query, Permission, Role } from 'appwrite';
+import { ref } from 'vue';
+import { ID, Query } from 'appwrite';
 
-// ✅ Se añade el campo `userId` a la interfaz
 export interface ISavedRecord {
   $id: string;
   clientName: string;
@@ -15,7 +14,6 @@ export interface ISavedRecord {
   installmentsInfo: string;
   isConverted?: boolean;
   conversionDate?: string;
-  userId: string; // <-- NUEVO
 }
 
 const savedRecords = ref<ISavedRecord[]>([]);
@@ -24,24 +22,16 @@ const isLoading = ref(false);
 export const useSavedQuotes = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  const { user } = useAuth(); // ✅ Obtenemos el usuario actual
   const COLLECTION_ID = config.public.cRecords;
 
   const getRecords = async () => {
-    if (!user.value) {
-      savedRecords.value = [];
-      return;
-    }
+    if (isLoading.value) return; 
     isLoading.value = true;
     try {
       const response = await databases.listDocuments(
         config.public.database,
         COLLECTION_ID,
-        [
-          // ✅ FILTRAMOS por el ID del usuario conectado
-          Query.equal("userId", user.value.$id),
-          Query.orderDesc('$createdAt')
-        ]
+        [Query.orderDesc('$createdAt')]
       );
       savedRecords.value = response.documents as unknown as ISavedRecord[];
     } catch (error) {
@@ -52,32 +42,12 @@ export const useSavedQuotes = () => {
     }
   };
 
-  const saveRecord = async (record: Omit<ISavedRecord, '$id' | 'userId'>) => {
-    if (!user.value) return; // No se puede guardar si no hay usuario
-    const userId = user.value.$id;
-    
+  const saveRecord = async (record: Omit<ISavedRecord, '$id'>) => {
     isLoading.value = true;
     try {
-      // ✅ Creamos el documento final añadiendo el userId
-      const docToSave = {
-        ...record,
-        userId: userId,
-      };
-
-      await databases.createDocument(
-        config.public.database,
-        COLLECTION_ID,
-        ID.unique(),
-        docToSave,
-        // ✅ AÑADIMOS permisos para que solo el creador pueda acceder
-        [
-          Permission.read(Role.user(userId)),
-          Permission.update(Role.user(userId)),
-          Permission.delete(Role.user(userId)),
-        ]
-      );
+      await databases.createDocument(config.public.database, COLLECTION_ID, ID.unique(), record);
       console.log("✅ Registro guardado exitosamente!");
-      await getRecords();
+      await getRecords(); // ✅ Refresca la lista después de guardar
     } catch (error) {
       console.error("❌ Error al guardar el registro:", error);
       throw error;
@@ -87,18 +57,12 @@ export const useSavedQuotes = () => {
   };
 
   const convertQuoteToSale = async (recordId: string) => {
-    // La seguridad aquí ya está garantizada por los permisos del documento.
-    // Un usuario no podrá llamar a esta función sobre un documento que no le pertenece.
     isLoading.value = true;
     try {
-      const updateData = {
-        type: 'VENTA',
-        isConverted: true,
-        conversionDate: new Date().toISOString()
-      };
+      const updateData = { type: 'VENTA', isConverted: true, conversionDate: new Date().toISOString() };
       await databases.updateDocument(config.public.database, COLLECTION_ID, recordId, updateData);
       console.log(`✅ Registro ${recordId} convertido a VENTA.`);
-      await getRecords();
+      await getRecords(); // ✅ Refresca la lista después de convertir
     } catch (error) {
       console.error(`❌ Error al convertir el registro ${recordId}:`, error);
       throw error;
@@ -107,21 +71,9 @@ export const useSavedQuotes = () => {
     }
   };
 
-  // ✅ Reemplazamos la carga inicial por un 'watch' que reacciona al estado del usuario
-  watch(user, (newUser) => {
-    if (newUser) {
-      getRecords();
-    } else {
-      savedRecords.value = [];
-    }
-  }, { immediate: true });
+  if (savedRecords.value.length === 0 && !isLoading.value) {
+    getRecords();
+  }
 
-
-  return {
-    isLoading,
-    savedRecords,
-    saveRecord,
-    getRecords,
-    convertQuoteToSale,
-  };
+  return { isLoading, savedRecords, saveRecord, getRecords, convertQuoteToSale };
 };
