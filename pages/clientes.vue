@@ -26,7 +26,7 @@
         no-data-text="No hay datos de ventas o cotizaciones para mostrar."
       >
         <template v-slot:item.clientName="{ item }">
-          <NuxtLink :to="`/clientes/${slugify(item.clientName)}`" class="client-link">
+          <NuxtLink :to="`/clientes/${encodeURIComponent(item.clientName)}`" class="client-link">
             {{ item.clientName }}
           </NuxtLink>
         </template>
@@ -57,17 +57,7 @@ const { formatAsArs } = useFormatters();
 
 const search = ref('');
 
-// ✅ Nueva función para convertir un nombre en una URL amigable
-const slugify = (text: string) => {
-  return text
-    .toString()
-    .toLowerCase()
-    .replace(/\s+/g, '-')           // Reemplaza espacios con -
-    .replace(/[^\w\-]+/g, '')       // Quita caracteres no alfanuméricos
-    .replace(/\-\-+/g, '-')         // Reemplaza múltiples - con uno solo
-    .replace(/^-+/, '')             // Quita - del principio
-    .replace(/-+$/, '');            // Quita - del final
-};
+// ✅ La función 'slugify' ya no es necesaria y se elimina.
 
 const clientSummary = computed(() => {
   const clientsData: Record<string, {
@@ -75,7 +65,6 @@ const clientSummary = computed(() => {
     recordCount: number;
     lastActivity: Date;
   }> = {};
-
   for (const record of savedRecords.value) {
     const name = record.clientName;
     if (!clientsData[name]) {
