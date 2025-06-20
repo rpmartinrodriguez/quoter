@@ -17,6 +17,13 @@
 
       <v-list nav>
         <v-list-item prepend-icon="mdi-calculator" title="Calculadora" to="/"></v-list-item>
+
+        <v-list-item
+          prepend-icon="mdi-account-box-multiple-outline"
+          title="Clientes"
+          to="/clientes"
+        ></v-list-item>
+
         <v-list-item prepend-icon="mdi-chart-bar" title="Mi Estadística" to="/estadisticas"></v-list-item>
         <v-list-item prepend-icon="mdi-finance" title="Proyección" to="/proyeccion"></v-list-item>
         <v-list-item prepend-icon="mdi-account-group" title="Programa 4/14" to="/programa414"></v-list-item>
