@@ -1,7 +1,7 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { ID, Query } from 'appwrite';
 
-// Se quita 'userId' de la interfaz
+// La interfaz no necesita cambios para esta funcionalidad
 export interface ISavedRecord {
   $id: string;
   clientName: string;
@@ -29,7 +29,6 @@ export const useSavedQuotes = () => {
     if (isLoading.value) return; 
     isLoading.value = true;
     try {
-      // Se quita el filtro Query.equal('userId', ...)
       const response = await databases.listDocuments(
         config.public.database,
         COLLECTION_ID,
@@ -47,7 +46,6 @@ export const useSavedQuotes = () => {
   const saveRecord = async (record: Omit<ISavedRecord, '$id'>) => {
     isLoading.value = true;
     try {
-      // La lógica ya no añade 'userId' ni permisos especiales
       await databases.createDocument(config.public.database, COLLECTION_ID, ID.unique(), record);
       await getRecords();
     } catch (error) {
@@ -72,9 +70,37 @@ export const useSavedQuotes = () => {
     }
   };
 
+  // ✅ --- INICIO: NUEVA FUNCIÓN PARA EDITAR UN REGISTRO ---
+  const updateRecord = async (id: string, dataToUpdate: Partial<Omit<ISavedRecord, '$id'>>) => {
+    isLoading.value = true;
+    try {
+      await databases.updateDocument(
+        config.public.database,
+        COLLECTION_ID,
+        id,
+        dataToUpdate
+      );
+      // Después de actualizar, refrescamos la lista para ver los cambios
+      await getRecords();
+    } catch (error) {
+      console.error(`❌ Error al actualizar el registro ${id}:`, error);
+      throw error;
+    } finally {
+      isLoading.value = false;
+    }
+  };
+  // ✅ --- FIN: NUEVA FUNCIÓN ---
+
   if (savedRecords.value.length === 0 && !isLoading.value) {
     getRecords();
   }
 
-  return { isLoading, savedRecords, saveRecord, getRecords, convertQuoteToSale };
+  return { 
+    isLoading, 
+    savedRecords, 
+    saveRecord, 
+    getRecords, 
+    convertQuoteToSale,
+    updateRecord, // ✅ Se exporta la nueva función
+  };
 };
