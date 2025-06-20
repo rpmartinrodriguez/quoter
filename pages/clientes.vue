@@ -26,7 +26,7 @@
         no-data-text="No hay datos de ventas o cotizaciones para mostrar."
       >
         <template v-slot:item.clientName="{ item }">
-          <NuxtLink :to="`/clientes/${encodeURIComponent(item.clientName)}`" class="client-link">
+          <NuxtLink :to="`/perfil-cliente?name=${encodeURIComponent(item.clientName)}`" class="client-link">
             {{ item.clientName }}
           </NuxtLink>
         </template>
@@ -46,6 +46,7 @@
 </template>
 
 <script lang="ts" setup>
+// El script no necesita cambios, solo el template.
 import { ref, computed, onMounted } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSavedQuotes } from '~/composables/useSavedQuotes';
@@ -56,8 +57,6 @@ const { setTitle } = usePageTitle();
 const { formatAsArs } = useFormatters();
 
 const search = ref('');
-
-// ✅ La función 'slugify' ya no es necesaria y se elimina.
 
 const clientSummary = computed(() => {
   const clientsData: Record<string, {
