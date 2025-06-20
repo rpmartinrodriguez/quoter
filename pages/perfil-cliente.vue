@@ -5,7 +5,7 @@
   </div>
 
   <div v-else>
-    <div v-if="clientName">
+    <div v-if="clientHistory.length > 0">
       <v-row>
         <v-col>
           <v-btn to="/clientes" variant="text" prepend-icon="mdi-arrow-left" class="mb-4">
@@ -46,20 +46,52 @@
         <v-col cols="12">
           <v-card flat>
             <v-card-title>Historial de Operaciones</v-card-title>
-            <v-data-table :headers="historyHeaders" :items="clientHistory" density="compact" no-data-text="Sin operaciones registradas."></v-data-table>
+            <v-data-table
+              :headers="historyHeaders"
+              :items="clientHistory"
+              density="compact"
+              no-data-text="Sin operaciones registradas."
+            >
+              <template v-slot:item.quoteDate="{ item }">
+                <span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span>
+              </template>
+              <template v-slot:item.type="{ item }">
+                <v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip>
+              </template>
+              <template v-slot:item.totalAmount="{ item }">
+                <span class="font-weight-bold">{{ formatAsArs(item.totalAmount) }}</span>
+              </template>
+              <template v-slot:item.products="{ item }">
+                <span>{{ item.products.join(', ') }}</span>
+              </template>
+              </v-data-table>
           </v-card>
         </v-col>
         <v-col cols="12">
           <v-card flat class="mt-4">
             <v-card-title>Referidos Aportados por este Cliente</v-card-title>
-            <v-data-table :headers="referralsHeaders" :items="clientReferrals" density="compact" no-data-text="Sin referidos aportados."></v-data-table>
+            <v-data-table
+              :headers="referralsHeaders"
+              :items="clientReferrals"
+              density="compact"
+              no-data-text="Sin referidos aportados."
+            >
+              <template v-slot:item.loadDate="{ item }">
+                <span>{{ new Date(item.loadDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span>
+              </template>
+            </v-data-table>
           </v-card>
         </v-col>
       </v-row>
     </div>
-
-    <div v-else class="text-center pa-8 text-grey">
-      No se encontraron operaciones para el cliente "{{ clientNameFromUrl }}".
+    
+    <div v-else class="text-center pa-16">
+      <v-icon size="64" color="grey-lighten-1">mdi-text-box-search-outline</v-icon>
+      <h2 class="text-h6 text-grey mt-4">No se encontraron operaciones para</h2>
+      <p class="text-h5 text-grey-darken-2 font-weight-bold">{{ clientName }}</p>
+      <v-btn to="/clientes" variant="text" prepend-icon="mdi-arrow-left" class="mt-8">
+        Volver al Directorio
+      </v-btn>
     </div>
   </div>
 </template>
@@ -72,21 +104,16 @@ import { useSavedQuotes } from '~/composables/useSavedQuotes';
 import { useReferrals } from '~/composables/useReferrals';
 import { useFormatters } from '~/composables/useFormatters';
 
-// ✅ Obtenemos los estados de carga de AMBOS composables
 const { savedRecords, isLoading: isLoadingQuotes, getRecords } = useSavedQuotes();
 const { referrals, isLoading: isLoadingReferrals, getReferrals } = useReferrals();
 const { setTitle } = usePageTitle();
 const { formatAsArs } = useFormatters();
 const route = useRoute();
 
-// ✅ Creamos una computada que nos dice si CUALQUIERA de los dos está cargando
 const isDataLoading = computed(() => isLoadingQuotes.value || isLoadingReferrals.value);
 
-// Se obtiene el nombre desde el parámetro de consulta '?name=...'
-const clientNameFromUrl = ref(decodeURIComponent(route.query.name as string || ''));
-const clientName = clientNameFromUrl;
+const clientName = ref(decodeURIComponent(route.query.name as string || ''));
 
-// El resto de la lógica de la página es la misma
 const clientHistory = computed(() => 
   savedRecords.value.filter(r => r.clientName === clientName.value)
 );
@@ -107,7 +134,7 @@ const clientStats = computed(() => {
 const historyHeaders = [
   { title: 'Fecha', key: 'quoteDate' },
   { title: 'Tipo', key: 'type' },
-  { title: 'Total', key: 'totalAmount' },
+  { title: 'Total', key: 'totalAmount', align: 'end' },
   { title: 'Productos', key: 'products' },
 ];
 
@@ -120,7 +147,6 @@ const referralsHeaders = [
 
 onMounted(() => {
   setTitle(`Perfil de: ${clientName.value}`);
-  // Nos aseguramos de pedir los datos al cargar esta página
   getRecords();
   getReferrals();
 });
