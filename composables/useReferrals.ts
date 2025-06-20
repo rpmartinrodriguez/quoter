@@ -1,7 +1,7 @@
-import { ref } from 'vue';
+import { ref, watch } from 'vue';
 import { ID, Query } from 'appwrite';
 
-// Se quita 'userId' de la interfaz
+// La interfaz no cambia
 export interface IReferral {
   $id: string;
   sponsor: string;
@@ -24,7 +24,6 @@ export const useReferrals = () => {
   const getReferrals = async () => {
     isLoading.value = true;
     try {
-      // Se quita el filtro Query.equal('userId', ...)
       const response = await databases.listDocuments(config.public.database, COLLECTION_ID, [
         Query.orderDesc('loadDate')
       ]);
@@ -43,7 +42,6 @@ export const useReferrals = () => {
         status: 'Pendiente',
         loadDate: new Date().toISOString(),
       };
-      // La lógica ya no añade 'userId' ni permisos especiales
       await databases.createDocument(config.public.database, COLLECTION_ID, ID.unique(), doc);
     } catch (error) {
       console.error("❌ Error al añadir referido:", error);
@@ -64,9 +62,34 @@ export const useReferrals = () => {
     }
   };
 
+  // ✅ --- INICIO: NUEVA FUNCIÓN PARA EDITAR LOS DATOS DE UN REFERIDO ---
+  const updateReferralData = async (id: string, dataToUpdate: Partial<IReferral>) => {
+    try {
+      await databases.updateDocument(
+        config.public.database,
+        COLLECTION_ID,
+        id,
+        dataToUpdate
+      );
+      // Después de actualizar, refrescamos la lista para ver los cambios
+      await getReferrals();
+    } catch (error) {
+      console.error(`❌ Error al actualizar datos del referido ${id}:`, error);
+      throw error;
+    }
+  };
+  // ✅ --- FIN: NUEVA FUNCIÓN ---
+
   if (referrals.value.length === 0 && !isLoading.value) {
     getReferrals();
   }
 
-  return { referrals, isLoading, getReferrals, addReferral, updateReferralStatus };
+  return { 
+    referrals, 
+    isLoading, 
+    getReferrals, 
+    addReferral, 
+    updateReferralStatus,
+    updateReferralData, // ✅ Se exporta la nueva función
+  };
 };
