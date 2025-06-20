@@ -6,8 +6,23 @@
         Cargar Referidos del Programa 4/14
       </v-card-title>
       <v-card-text>
-        <v-text-field v-model="sponsor" label="Nombre del Sponsor (Cliente que refiere)*" variant="outlined" class="mb-4"></v-text-field>
+        <v-autocomplete
+          v-model="sponsor"
+          :items="uniqueClientNames"
+          label="Buscar o escribir nombre del Sponsor*"
+          variant="outlined"
+          class="mb-4"
+        >
+          <template v-slot:no-data>
+            <v-list-item>
+              <v-list-item-title>
+                Escribí un nombre para usarlo como Sponsor.
+              </v-list-item-title>
+            </v-list-item>
+          </template>
+        </v-autocomplete>
         <v-divider></v-divider>
+
         <div v-for="(referral, index) in newReferralsList" :key="index" class="referral-form-item my-4 pa-4 border rounded">
           <div class="d-flex justify-space-between align-center mb-2">
             <h4 class="text-h6">Referido #{{ index + 1 }}</h4>
@@ -20,10 +35,22 @@
             <v-col cols="12" md="6"><v-text-field v-model.number="referral.peopleCount" label="Cantidad de Personas" type="number" density="compact" variant="outlined"></v-text-field></v-col>
           </v-row>
         </div>
+
         <div class="d-flex ga-4 mt-4">
-          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">Añadir Otro Referido</v-btn>
+          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">
+            Añadir Otro Referido
+          </v-btn>
           <v-spacer></v-spacer>
-          <v-btn @click="handleSaveAllReferrals" color="success" size="large" prepend-icon="mdi-content-save-all" :disabled="!isFormValid" :loading="isSaving">Guardar Todos</v-btn>
+          <v-btn 
+            @click="handleSaveAllReferrals" 
+            color="success" 
+            size="large" 
+            prepend-icon="mdi-content-save-all"
+            :disabled="!isFormValid"
+            :loading="isSaving"
+          >
+            Guardar Todos
+          </v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -83,11 +110,12 @@ import { ref, computed, onMounted } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useSnackbar } from '~/composables/useSnackbar';
-// ✅ Importamos el nuevo componente de diálogo que ya creaste
 import EditReferralDialog from '~/components/EditReferralDialog.vue';
+// ✅ 1. Importamos el gestor de cotizaciones para obtener la lista de clientes
+import { useSavedQuotes } from '~/composables/useSavedQuotes';
 
-// ✅ Usamos la nueva función 'updateReferralData' del composable
 const { referrals, isLoading, addReferral, updateReferralStatus, getReferrals, updateReferralData } = useReferrals();
+const { savedRecords } = useSavedQuotes(); // ✅ Obtenemos los registros de ventas/cotizaciones
 const { showSnackbar } = useSnackbar();
 const { setTitle } = usePageTitle();
 
@@ -97,7 +125,6 @@ const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peo
 const selectedSponsor = ref<string | null>(null);
 const selectedStatus = ref<string | null>(null);
 
-// ✅ Nuevo estado y funciones para el diálogo de edición
 const editDialog = ref(false);
 const recordToEdit = ref<IReferral | null>(null);
 
@@ -118,7 +145,12 @@ const handleUpdateReferral = async (updatedData: Partial<IReferral>) => {
     editDialog.value = false;
   }
 };
-// ✅ FIN de la nueva lógica de edición
+
+// ✅ 2. Nueva computada que extrae los nombres de cliente únicos de los registros
+const uniqueClientNames = computed(() => {
+  const clientNames = new Set(savedRecords.value.map(r => r.clientName));
+  return Array.from(clientNames).sort();
+});
 
 const uniqueSponsors = computed(() => {
   const sponsors = new Set(referrals.value.map(r => r.sponsor));
@@ -136,7 +168,6 @@ const filteredReferrals = computed(() => {
   return items;
 });
 
-// ✅ Se añade la nueva columna de 'Acciones' a los headers
 const headers = [
   { title: 'Fecha de Carga', key: 'loadDate' },
   { title: 'Sponsor', key: 'sponsor' },
@@ -155,9 +186,10 @@ const removeReferralForm = (index: number) => { newReferralsList.value.splice(in
 const handleSaveAllReferrals = async () => {
   if (!isFormValid.value) return;
   isSaving.value = true;
-  const sponsorName = sponsor.value;
+  // El v-model del autocomplete puede devolver un objeto o un string, nos aseguramos de usar el string
+  const sponsorName = typeof sponsor.value === 'object' && sponsor.value !== null ? (sponsor.value as any).clientName : sponsor.value;
+
   let successfulSaves = 0;
-  
   for (const referral of newReferralsList.value) {
     try {
       await addReferral({ ...referral, sponsor: sponsorName });
