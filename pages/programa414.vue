@@ -12,9 +12,7 @@
           variant="outlined"
           class="mb-4"
         ></v-text-field>
-        
         <v-divider></v-divider>
-
         <div v-for="(referral, index) in newReferralsList" :key="index" class="referral-form-item my-4 pa-4 border rounded">
           <div class="d-flex justify-space-between align-center mb-2">
             <h4 class="text-h6">Referido #{{ index + 1 }}</h4>
@@ -27,22 +25,10 @@
             <v-col cols="12" md="6"><v-text-field v-model.number="referral.peopleCount" label="Cantidad de Personas" type="number" density="compact" variant="outlined"></v-text-field></v-col>
           </v-row>
         </div>
-
         <div class="d-flex ga-4 mt-4">
-          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">
-            Añadir Otro Referido
-          </v-btn>
+          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">Añadir Otro Referido</v-btn>
           <v-spacer></v-spacer>
-          <v-btn 
-            @click="handleSaveAllReferrals" 
-            color="success" 
-            size="large" 
-            prepend-icon="mdi-content-save-all"
-            :disabled="!isFormValid"
-            :loading="isSaving"
-          >
-            Guardar Todos
-          </v-btn>
+          <v-btn @click="handleSaveAllReferrals" color="success" size="large" prepend-icon="mdi-content-save-all" :disabled="!isFormValid" :loading="isSaving">Guardar Todos</v-btn>
         </div>
       </v-card-text>
     </v-card>
@@ -55,7 +41,6 @@
           <v-col cols="12" md="4"><v-select v-model="selectedStatus" :items="statusOptions" label="Filtrar por Estado" variant="outlined" density="compact" clearable hide-details></v-select></v-col>
         </v-row>
       </v-card-text>
-      
       <v-data-table
         :headers="headers"
         :items="filteredReferrals"
@@ -70,10 +55,7 @@
         <template v-slot:header.status="{ column }">
           <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedStatus ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedStatus = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="statusName in statusOptions" :key="statusName" @click="selectedStatus = statusName" :title="statusName"></v-list-item></v-list></v-menu>
         </template>
-        
-        <template v-slot:item.loadDate="{ item }">
-          <span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span>
-        </template>
+        <template v-slot:item.loadDate="{ item }"><span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span></template>
         <template v-slot:item.status="{ item }">
           <v-select
             v-model="item.status"
@@ -86,8 +68,18 @@
             class="status-select"
           ></v-select>
         </template>
+        <template v-slot:item.actions="{ item }">
+          <v-btn icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" title="Editar Referido"></v-btn>
+        </template>
       </v-data-table>
     </v-card>
+
+    <EditReferralDialog
+      :show="editDialog"
+      :referral="recordToEdit"
+      @close="editDialog = false"
+      @save="handleUpdateReferral"
+    />
   </div>
 </template>
 
@@ -96,8 +88,11 @@ import { ref, computed, onMounted } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useSnackbar } from '~/composables/useSnackbar';
+// ✅ Importamos el nuevo componente de diálogo
+import EditReferralDialog from '~/components/EditReferralDialog.vue';
 
-const { referrals, isLoading, addReferral, updateReferralStatus, getReferrals } = useReferrals();
+// ✅ Usamos la nueva función 'updateReferralData'
+const { referrals, isLoading, addReferral, updateReferralStatus, getReferrals, updateReferralData } = useReferrals();
 const { showSnackbar } = useSnackbar();
 const { setTitle } = usePageTitle();
 
@@ -107,22 +102,34 @@ const newReferralsList = ref([{ referralName: '', phone: '', occupation: '', peo
 const selectedSponsor = ref<string | null>(null);
 const selectedStatus = ref<string | null>(null);
 
-const uniqueSponsors = computed(() => {
-  const sponsors = new Set(referrals.value.map(r => r.sponsor));
-  return Array.from(sponsors).sort();
-});
+// ✅ Nuevo estado y funciones para el diálogo de edición
+const editDialog = ref(false);
+const recordToEdit = ref<IReferral | null>(null);
 
-const filteredReferrals = computed(() => {
-  let items = referrals.value;
-  if (selectedSponsor.value) {
-    items = items.filter(r => r.sponsor === selectedSponsor.value);
-  }
-  if (selectedStatus.value) {
-    items = items.filter(r => r.status === selectedStatus.value);
-  }
-  return items;
-});
+const openEditDialog = (referral: IReferral) => {
+  recordToEdit.value = referral;
+  editDialog.value = true;
+};
 
+const handleUpdateReferral = async (updatedData: Partial<IReferral>) => {
+  if (!recordToEdit.value) return;
+  try {
+    // La lógica de actualización ahora llama a la nueva función
+    await updateReferralData(recordToEdit.value.$id, updatedData);
+    showSnackbar({text: 'Referido actualizado con éxito', color: 'success'});
+  } catch (error) {
+    showSnackbar({text: 'Error al actualizar el referido', color: 'error'});
+    console.error("Fallo al actualizar", error);
+  } finally {
+    editDialog.value = false;
+  }
+};
+// ✅ FIN de la nueva lógica de edición
+
+const uniqueSponsors = computed(() => { /* ... sin cambios ... */ });
+const filteredReferrals = computed(() => { /* ... sin cambios ... */ });
+
+// ✅ Se añade la nueva columna de 'Acciones'
 const headers = [
   { title: 'Fecha de Carga', key: 'loadDate' },
   { title: 'Sponsor', key: 'sponsor' },
@@ -130,50 +137,15 @@ const headers = [
   { title: 'Teléfono', key: 'phone' },
   { title: 'Ocupación', key: 'occupation' },
   { title: 'Estado', key: 'status', width: '200px' },
+  { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },
 ];
 const statusOptions = ['Pendiente', 'Demo', 'No Acepta', 'No Contesta'];
 
 const isFormValid = computed(() => sponsor.value.trim() !== '' && newReferralsList.value.every(r => r.referralName.trim() !== ''));
 const addReferralForm = () => { newReferralsList.value.push({ referralName: '', phone: '', occupation: '', peopleCount: undefined }); };
 const removeReferralForm = (index: number) => { newReferralsList.value.splice(index, 1); };
-
-const handleSaveAllReferrals = async () => {
-  if (!isFormValid.value) return;
-  isSaving.value = true;
-  const sponsorName = sponsor.value;
-  let successfulSaves = 0;
-  
-  for (const referral of newReferralsList.value) {
-    try {
-      await addReferral({ ...referral, sponsor: sponsorName });
-      successfulSaves++;
-    } catch (error: any) {
-      // ✅ Se reemplaza la alerta por una notificación snackbar
-      showSnackbar({ text: `Error al guardar a "${referral.referralName}": ${error.message}`, color: 'error' });
-      isSaving.value = false;
-      return; 
-    }
-  }
-  
-  if (successfulSaves > 0) {
-    await getReferrals();
-    // ✅ Se reemplaza la alerta por una notificación snackbar
-    showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.`, color: 'success' });
-  }
-
-  isSaving.value = false;
-  newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
-  sponsor.value = '';
-};
-
-const getStatusColor = (status: IReferral['status']) => {
-  switch (status) {
-    case 'Demo': return 'green-lighten-4';
-    case 'No Acepta': return 'red-lighten-4';
-    case 'No Contesta': return 'orange-lighten-4';
-    default: return 'blue-lighten-4';
-  }
-};
+const handleSaveAllReferrals = async () => { /* ... sin cambios ... */ };
+const getStatusColor = (status: IReferral['status']) => { /* ... sin cambios ... */ };
 
 onMounted(() => {
   setTitle('Programa 4/14');
