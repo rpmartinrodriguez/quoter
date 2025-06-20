@@ -5,7 +5,6 @@ export default defineNuxtConfig({
   compatibilityDate: "2024-04-03",
   devtools: { enabled: false },
 
-  // Tu configuración de Vuetify actual.
   build: {
     transpile: ["vuetify"],
   },
@@ -27,10 +26,10 @@ export default defineNuxtConfig({
 
   // --- CONFIGURACIÓN DE RUNTIME COMPLETA Y CORREGIDA ---
   runtimeConfig: {
-    // Las claves aquí SOLO son accesibles en el entorno del servidor.
+    // Clave secreta, solo accesible en el servidor.
     projectApiKey: process.env.PROJECT_API_KEY,
 
-    // Las claves aquí son seguras para exponer en el navegador.
+    // Claves públicas, seguras para el navegador.
     public: {
       endpoint: process.env.ENDPOINT,
       project: process.env.PROJECT,
@@ -40,9 +39,10 @@ export default defineNuxtConfig({
       cQuotes: process.env.C_QUOTES,
       cActionPasswords: process.env.C_ACTION_PASSWORDS,
       cRecords: process.env.C_RECORDS,
-      
-      // ✅ AÑADIMOS LA NUEVA VARIABLE PARA LA COLECCIÓN DE REFERIDOS
       cReferrals: process.env.C_REFERRALS,
+
+      // ✅ AÑADIMOS LA NUEVA VARIABLE PARA LA COLECCIÓN DE CLIENTES
+      cClients: process.env.C_CLIENTS,
     },
   },
 
