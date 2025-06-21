@@ -22,6 +22,42 @@
       </v-row>
 
       <v-divider class="my-8"></v-divider>
+      
+      <v-row class="mb-4">
+        <v-col cols="12" md="4">
+          <v-select
+            v-model="selectedClient"
+            :items="uniqueClients"
+            label="Filtrar por Cliente"
+            variant="outlined"
+            density="compact"
+            clearable
+            hide-details
+          ></v-select>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-select
+            v-model="selectedType"
+            :items="['VENTA', 'COTIZACIÓN']"
+            label="Filtrar por Tipo"
+            variant="outlined"
+            density="compact"
+            clearable
+            hide-details
+          ></v-select>
+        </v-col>
+        <v-col cols="12" md="4">
+          <v-select
+            v-model="selectedAction"
+            :items="actionOptions"
+            label="Filtrar por Acción"
+            variant="outlined"
+            density="compact"
+            clearable
+            hide-details
+          ></v-select>
+        </v-col>
+      </v-row>
 
       <v-data-table
         :headers="headers"
@@ -38,10 +74,15 @@
         <template v-slot:header.type="{ column }">
           <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedType ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedType = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="typeOption in ['VENTA', 'COTIZACIÓN']" :key="typeOption" :title="typeOption" @click="selectedType = typeOption"></v-list-item></v-list></v-menu>
         </template>
+        <template v-slot:header.actions="{ column }">
+           <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedAction ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedAction = null" title="Todas las Acciones"></v-list-item><v-divider></v-divider><v-list-item v-for="action in actionOptions" :key="action" :title="action" @click="selectedAction = action"></v-list-item></v-list></v-menu>
+        </template>
         
-        <template v-slot:item.quoteDate="{ item }"><span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR') }}</span></template>
-        <template v-slot:item.type="{ item }"> <v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip></template>
+        <template v-slot:item.quoteDate="{ item }"><span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span></template>
+        <template v-slot:item.type="{ item }"><v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip></template>
         <template v-slot:item.totalAmount="{ item }"><span class="font-weight-bold">{{ formatAsArs(item.totalAmount) }}</span></template>
+        <template v-slot:item.depositAmount="{ item }"><span>{{ formatAsArs(item.depositAmount) }}</span></template>
+        <template v-slot:item.installmentsInfo="{ item }"><span>{{ item.installmentsInfo }}</span></template>
         <template v-slot:item.products="{ item }"><span>{{ item.products.join(', ') }}</span></template>
         <template v-slot:item.followUpDate="{ item }">
           <v-chip v-if="item.followUpDate" :color="getFollowUpColor(item.followUpDate)" size="small" variant="tonal">
@@ -49,7 +90,6 @@
             {{ new Date(item.followUpDate).toLocaleDateString('es-AR') }}
           </v-chip>
         </template>
-        
         <template v-slot:item.actions="{ item }">
           <div class="d-flex align-center justify-center ga-1">
             <v-btn icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" title="Editar Cliente"></v-btn>
@@ -64,12 +104,9 @@
 
   <EditRecordDialog :show="editDialog" :record="recordToEdit" @close="editDialog = false" @save="handleUpdateRecord" />
   <v-dialog v-model="deleteDialog.show" persistent max-width="400">
-    <v-card class="text-center pa-4"><v-icon size="64" color="error" class="mb-4">mdi-alert-circle-outline</v-icon><h3 class="text-h5 font-weight-bold mb-2">Confirmar Eliminación</h3>
+      <v-card class="text-center pa-4"><v-icon size="64" color="error" class="mb-4">mdi-alert-circle-outline</v-icon><h3 class="text-h5 font-weight-bold mb-2">Confirmar Eliminación</h3>
       <p v-if="deleteDialog.record" class="body-1 text-medium-emphasis">¿Estás seguro de que querés eliminar el registro de <strong>{{ deleteDialog.record.clientName }}</strong>? Esta acción no se puede deshacer.</p>
-      <v-card-actions class="d-flex justify-center ga-3 mt-4">
-        <v-btn color="grey" variant="tonal" @click="deleteDialog.show = false">Cancelar</v-btn>
-        <v-btn color="error" variant="flat" @click="confirmDelete">Sí, Eliminar</v-btn>
-      </v-card-actions>
+      <v-card-actions class="d-flex justify-center ga-3 mt-4"><v-btn color="grey" variant="tonal" @click="deleteDialog.show = false">Cancelar</v-btn><v-btn color="error" variant="flat" @click="confirmDelete">Sí, Eliminar</v-btn></v-card-actions>
     </v-card>
   </v-dialog>
   <v-dialog v-model="followUpDialog.show" persistent max-width="500px">
@@ -112,8 +149,8 @@ const filteredRecords = computed(() => {
   if (selectedClient.value) items = items.filter(r => r.clientName === selectedClient.value);
   if (selectedType.value) items = items.filter(r => r.type === selectedType.value);
   if (selectedAction.value) {
-    if (selectedAction.value === 'Convertible') items = items.filter(r => r.type === 'COTIZACIÓN');
-    else if (selectedAction.value === 'Ya Convertida') items = items.filter(r => r.isConverted === true);
+    if (selectedAction.value === 'Convertible') { items = items.filter(r => r.type === 'COTIZACIÓN'); } 
+    else if (selectedAction.value === 'Ya Convertida') { items = items.filter(r => r.isConverted === true); }
   }
   return items;
 });
@@ -156,14 +193,10 @@ const confirmDelete = async () => {
   finally { deleteDialog.show = false; }
 };
 
-const openFollowUpDialog = (record: ISavedRecord) => {
-  followUpDialog.record = record;
-  followUpDialog.date = record.followUpDate ? new Date(record.followUpDate).toISOString().substr(0, 10) : '';
-  followUpDialog.notes = record.followUpNotes || '';
-  followUpDialog.show = true;
-};
+// ✅ --- FUNCIÓN DE GUARDADO DE SEGUIMIENTO MODIFICADA CON ALERTA ---
 const saveFollowUp = async () => {
   if (!followUpDialog.record || !followUpDialog.date) return;
+  
   try {
     const dataToUpdate = {
       followUpDate: new Date(followUpDialog.date).toISOString(),
@@ -171,9 +204,15 @@ const saveFollowUp = async () => {
     };
     await updateRecord(followUpDialog.record.$id, dataToUpdate);
     showSnackbar({ text: 'Seguimiento guardado con éxito.' });
-  } catch (error) { showSnackbar({ text: 'Error al guardar el seguimiento.', color: 'error' }); }
-  finally { followUpDialog.show = false; }
+  } catch (error: any) {
+    console.error("Fallo al guardar seguimiento", error);
+    // Esta alerta nos dirá el error exacto de Appwrite
+    alert(`ERROR AL GUARDAR SEGUIMIENTO:\n\n${error.message}`);
+  } finally {
+    followUpDialog.show = false;
+  }
 };
+
 const getFollowUpColor = (dateString: string) => {
   if (!dateString) return 'default';
   const today = new Date(); const followUpDate = new Date(dateString);
