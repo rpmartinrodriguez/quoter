@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue';
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 
-// La interfaz no necesita cambios para esta funcionalidad
+// ✅ Se añaden los nuevos campos opcionales para el seguimiento
 export interface ISavedRecord {
   $id: string;
   clientName: string;
@@ -15,6 +15,8 @@ export interface ISavedRecord {
   installmentsInfo: string;
   isConverted?: boolean;
   conversionDate?: string;
+  followUpDate?: string;   // <-- NUEVO
+  followUpNotes?: string; // <-- NUEVO
 }
 
 const savedRecords = ref<ISavedRecord[]>([]);
@@ -70,7 +72,6 @@ export const useSavedQuotes = () => {
     }
   };
 
-  // ✅ --- INICIO: NUEVA FUNCIÓN PARA EDITAR UN REGISTRO ---
   const updateRecord = async (id: string, dataToUpdate: Partial<Omit<ISavedRecord, '$id'>>) => {
     isLoading.value = true;
     try {
@@ -80,7 +81,6 @@ export const useSavedQuotes = () => {
         id,
         dataToUpdate
       );
-      // Después de actualizar, refrescamos la lista para ver los cambios
       await getRecords();
     } catch (error) {
       console.error(`❌ Error al actualizar el registro ${id}:`, error);
@@ -89,8 +89,7 @@ export const useSavedQuotes = () => {
       isLoading.value = false;
     }
   };
-  // ✅ --- FIN: NUEVA FUNCIÓN ---
-
+  
   if (savedRecords.value.length === 0 && !isLoading.value) {
     getRecords();
   }
@@ -101,6 +100,6 @@ export const useSavedQuotes = () => {
     saveRecord, 
     getRecords, 
     convertQuoteToSale,
-    updateRecord, // ✅ Se exporta la nueva función
+    updateRecord,
   };
 };
