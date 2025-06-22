@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue';
 import { ID, Query } from 'appwrite';
 
-// La interfaz no cambia
+// ✅ Se añaden los nuevos campos opcionales para el seguimiento
 export interface IReferral {
   $id: string;
   sponsor: string;
@@ -11,6 +11,8 @@ export interface IReferral {
   peopleCount?: number;
   status: 'Pendiente' | 'Demo' | 'No Acepta' | 'No Contesta';
   loadDate: string;
+  followUpDate?: string;   // <-- NUEVO
+  followUpNotes?: string; // <-- NUEVO
 }
 
 const referrals = ref<IReferral[]>([]);
@@ -56,13 +58,13 @@ export const useReferrals = () => {
       if (index !== -1) {
         referrals.value[index].status = status;
       }
-    } catch (error) {
+    } catch (error)
+    {
       console.error("❌ Error al actualizar el estado del referido:", error);
       throw error;
     }
   };
 
-  // ✅ --- INICIO: NUEVA FUNCIÓN PARA EDITAR LOS DATOS DE UN REFERIDO ---
   const updateReferralData = async (id: string, dataToUpdate: Partial<IReferral>) => {
     try {
       await databases.updateDocument(
@@ -78,7 +80,6 @@ export const useReferrals = () => {
       throw error;
     }
   };
-  // ✅ --- FIN: NUEVA FUNCIÓN ---
 
   if (referrals.value.length === 0 && !isLoading.value) {
     getReferrals();
@@ -90,6 +91,6 @@ export const useReferrals = () => {
     getReferrals, 
     addReferral, 
     updateReferralStatus,
-    updateReferralData, // ✅ Se exporta la nueva función
+    updateReferralData,
   };
 };
