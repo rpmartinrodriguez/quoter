@@ -1,76 +1,99 @@
 import { ref } from "vue";
 import { ID, Query } from "appwrite";
+import readXlsxFile from "read-excel-file";
 
 // --- ESTADO SINGLETON ---
-// Estado compartido para toda la aplicación.
 const products = ref<Product[]>([]);
 const selected = ref<Product[]>([]);
 const isLoading = ref<boolean>(false);
 
-// Interfaz para el tipado, idealmente en `types/index.ts`
+// --- INTERFAZ ---
+// Se define la estructura clara de un producto
 interface Product {
-  // Define aquí las propiedades de tu producto: $id, detail, price, etc.
-  [key: string]: any; 
+  $id: string;
+  detail: string;
+  composition: string;
+  price: number;
 }
 
-// El parámetro "init" se elimina, ya no es necesario.
 export const useProducts = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  const { parseProducts } = useParse(); // Asumo que este composable existe.
+  const COLLECTION_ID = config.public.cProducts;
 
   /**
-   * Obtiene la lista de productos desde Appwrite.
-   * Previene ejecuciones concurrentes con la bandera isLoading.
+   * Obtiene la lista de todos los productos desde Appwrite.
    */
   const getProducts = async () => {
     if (isLoading.value) return;
-
+    isLoading.value = true;
     try {
-      isLoading.value = true;
       const res = await databases.listDocuments(
         config.public.database,
-        config.public.cProducts,
-        [Query.limit(500)]
+        COLLECTION_ID,
+        [Query.limit(5000)] // Aumentamos el límite por si tenés muchos productos
       );
-
-      if (Array.isArray(res.documents) && res.documents.length > 0) {
-        const parsed = parseProducts(res.documents);
-        products.value = parsed ?? [];
-      } else {
-        // Si no vienen productos, reseteamos ambos estados.
-        products.value = [];
-        selected.value = [];
-      }
+      products.value = res.documents as unknown as Product[];
     } catch (error) {
       console.error("❌ Error al obtener productos:", error);
-      // En caso de error, también reseteamos ambos estados.
       products.value = [];
-      selected.value = [];
     } finally {
       isLoading.value = false;
     }
   };
 
-  // --- LÓGICA DE CARGA INICIAL ---
-  // Se autoejecuta si la lista de productos está vacía y no hay una carga en curso.
-  // Esto asegura que cualquier componente que llame a useProducts tenga los datos disponibles.
+  /**
+   * Borra todos los productos existentes y los reemplaza con los de un archivo Excel.
+   * @param file - El archivo .xlsx seleccionado por el usuario.
+   */
+  const updateProducts = async (file: File) => {
+    isLoading.value = true;
+    try {
+      // 1. Obtenemos todos los IDs de los productos actuales para borrarlos.
+      const currentProducts = await databases.listDocuments(config.public.database, COLLECTION_ID, [Query.limit(5000)]);
+      for (const product of currentProducts.documents) {
+        await databases.deleteDocument(config.public.database, COLLECTION_ID, product.$id);
+      }
+      
+      // 2. Leemos las filas del nuevo archivo de Excel.
+      const rows = await readXlsxFile(file);
+      // Omitimos la primera fila (cabecera) con .slice(1)
+      for (const row of rows.slice(1)) {
+        const productData = {
+          detail: row[0],
+          composition: row[1],
+          price: row[2],
+        };
+        // 3. Creamos un nuevo documento por cada fila del Excel.
+        await databases.createDocument(
+          config.public.database,
+          COLLECTION_ID,
+          ID.unique(),
+          productData
+        );
+      }
+      // 4. Refrescamos la lista en la aplicación con los nuevos productos.
+      await getProducts();
+    } catch (e) {
+      console.error("❌ Error al actualizar productos desde Excel", e);
+      throw e; // Lanzamos el error para que el componente que llama lo pueda manejar
+    } finally {
+      isLoading.value = false;
+    }
+  };
+
+
+  // Carga inicial de datos si la lista está vacía.
   if (products.value.length === 0 && !isLoading.value) {
     getProducts();
   }
 
   // Se exponen el estado y las funciones.
   return {
-    getProducts, // La mantenemos por si se necesita recargar la lista manualmente.
     list: products,
     selected,
-    isLoading, // Exponemos isLoading para la UI.
+    isLoading,
+    getProducts,
+    updateProducts,
   };
 };
-
-/*
-* NOTA SOBRE `createProducts`:
-* La función `createProducts` y la constante `data` no estaban siendo exportadas
-* ni utilizadas dentro del composable, por lo que las he omitido en esta versión final.
-* Si las necesitás para poblar la base de datos, deberías exportarlas en el `return`.
-*/
