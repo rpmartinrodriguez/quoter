@@ -52,21 +52,14 @@
               density="compact"
               no-data-text="Sin operaciones registradas."
             >
-              <template v-slot:item.quoteDate="{ item }">
-                <span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span>
-              </template>
-              <template v-slot:item.type="{ item }">
-                <v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip>
-              </template>
-              <template v-slot:item.totalAmount="{ item }">
-                <span class="font-weight-bold">{{ formatAsArs(item.totalAmount) }}</span>
-              </template>
-              <template v-slot:item.products="{ item }">
-                <span>{{ item.products.join(', ') }}</span>
-              </template>
-              </v-data-table>
+              <template v-slot:item.quoteDate="{ item }"><span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span></template>
+              <template v-slot:item.type="{ item }"><v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip></template>
+              <template v-slot:item.totalAmount="{ item }"><span class="font-weight-bold">{{ formatAsArs(item.totalAmount) }}</span></template>
+              <template v-slot:item.products="{ item }"><span>{{ item.products.join(', ') }}</span></template>
+            </v-data-table>
           </v-card>
         </v-col>
+        
         <v-col cols="12">
           <v-card flat class="mt-4">
             <v-card-title>Referidos Aportados por este Cliente</v-card-title>
@@ -74,10 +67,28 @@
               :headers="referralsHeaders"
               :items="clientReferrals"
               density="compact"
-              no-data-text="Sin referidos aportados."
+              no-data-text="Este cliente no ha aportado referidos."
             >
-              <template v-slot:item.loadDate="{ item }">
-                <span>{{ new Date(item.loadDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span>
+              <template v-slot:item.loadDate="{ item }"><span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span></template>
+              
+              <template v-slot:item.status="{ item }">
+                <v-chip :color="getStatusColor(item.status)" size="small" label variant="tonal">{{ item.status }}</v-chip>
+              </template>
+              <template v-slot:item.nextFollowUp="{ item }">
+                <v-chip v-if="item.nextFollowUp" :color="getFollowUpColor(item.nextFollowUp)" size="small">
+                  <v-icon start size="small">mdi-calendar-clock</v-icon>
+                  {{ new Date(item.nextFollowUp).toLocaleDateString('es-AR') }}
+                </v-chip>
+              </template>
+              <template v-slot:item.notesFollowUp="{ item }">
+                <div v-if="item.notesFollowUp" class="notes-cell">
+                  <v-tooltip location="top">
+                    <template v-slot:activator="{ props }">
+                      <span v-bind="props">{{ item.notesFollowUp }}</span>
+                    </template>
+                    <div style="max-width: 300px;">{{ item.notesFollowUp }}</div>
+                  </v-tooltip>
+                </div>
               </template>
             </v-data-table>
           </v-card>
@@ -89,9 +100,7 @@
       <v-icon size="64" color="grey-lighten-1">mdi-text-box-search-outline</v-icon>
       <h2 class="text-h6 text-grey mt-4">No se encontraron operaciones para</h2>
       <p class="text-h5 text-grey-darken-2 font-weight-bold">{{ clientName }}</p>
-      <v-btn to="/clientes" variant="text" prepend-icon="mdi-arrow-left" class="mt-8">
-        Volver al Directorio
-      </v-btn>
+      <v-btn to="/clientes" variant="text" prepend-icon="mdi-arrow-left" class="mt-8">Volver al Directorio</v-btn>
     </div>
   </div>
 </template>
@@ -101,7 +110,7 @@ import { ref, computed, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSavedQuotes } from '~/composables/useSavedQuotes';
-import { useReferrals } from '~/composables/useReferrals';
+import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useFormatters } from '~/composables/useFormatters';
 
 const { savedRecords, isLoading: isLoadingQuotes, getRecords } = useSavedQuotes();
@@ -111,16 +120,10 @@ const { formatAsArs } = useFormatters();
 const route = useRoute();
 
 const isDataLoading = computed(() => isLoadingQuotes.value || isLoadingReferrals.value);
-
 const clientName = ref(decodeURIComponent(route.query.name as string || ''));
 
-const clientHistory = computed(() => 
-  savedRecords.value.filter(r => r.clientName === clientName.value)
-);
-
-const clientReferrals = computed(() =>
-  referrals.value.filter(r => r.sponsor === clientName.value)
-);
+const clientHistory = computed(() => savedRecords.value.filter(r => r.clientName === clientName.value));
+const clientReferrals = computed(() => referrals.value.filter(r => r.sponsor === clientName.value));
 
 const clientStats = computed(() => {
   const sales = clientHistory.value.filter(r => r.type === 'VENTA');
@@ -132,18 +135,35 @@ const clientStats = computed(() => {
 });
 
 const historyHeaders = [
-  { title: 'Fecha', key: 'quoteDate' },
-  { title: 'Tipo', key: 'type' },
-  { title: 'Total', key: 'totalAmount', align: 'end' },
-  { title: 'Productos', key: 'products' },
+  { title: 'Fecha', key: 'quoteDate' }, { title: 'Tipo', key: 'type' },
+  { title: 'Total', key: 'totalAmount', align: 'end' }, { title: 'Productos', key: 'products', width: '40%' },
 ];
 
+// ✅ Se actualizan los headers de la tabla de referidos
 const referralsHeaders = [
-  { title: 'Fecha de Carga', key: 'loadDate' },
   { title: 'Referido', key: 'referralName' },
-  { title: 'Teléfono', key: 'phone' },
   { title: 'Estado', key: 'status' },
+  { title: 'Próximo Seguimiento', key: 'nextFollowUp' },
+  { title: 'Notas', key: 'notesFollowUp', width: '35%' },
 ];
+
+// ✅ Se añaden las funciones para dar color a los estados y fechas
+const getStatusColor = (status: IReferral['status']) => {
+  switch (status) {
+    case 'Demo': return 'success';
+    case 'No Acepta': return 'error';
+    case 'No Contesta': return 'warning';
+    default: return 'info';
+  }
+};
+const getFollowUpColor = (dateString?: string) => {
+  if (!dateString) return undefined;
+  const today = new Date(); today.setUTCHours(0, 0, 0, 0);
+  const followUpDate = new Date(dateString); followUpDate.setUTCHours(0, 0, 0, 0);
+  if (followUpDate < today) return 'error';
+  if (followUpDate.getTime() === today.getTime()) return 'warning';
+  return 'primary';
+};
 
 onMounted(() => {
   setTitle(`Perfil de: ${clientName.value}`);
@@ -151,3 +171,13 @@ onMounted(() => {
   getReferrals();
 });
 </script>
+
+<style scoped>
+.notes-cell {
+  max-width: 300px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+</style>
