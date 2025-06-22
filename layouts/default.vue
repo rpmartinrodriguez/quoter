@@ -28,6 +28,16 @@
             :subtitle="notification.subtitle"
             prepend-icon="mdi-calendar-clock"
           >
+            <template v-slot:append>
+              <v-btn
+                icon="mdi-check"
+                variant="text"
+                size="small"
+                color="success"
+                title="Marcar como completado"
+                @click.prevent="handleMarkAsDone(notification.id)"
+              ></v-btn>
+            </template>
           </v-list-item>
           
           <v-list-item v-if="notificationCount === 0">
@@ -37,6 +47,7 @@
           </v-list-item>
         </v-list>
       </v-menu>
+
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
     </v-app-bar>
 
@@ -84,6 +95,7 @@
         <v-btn icon="mdi-close" variant="text" @click="snackbar.show.value = false"></v-btn>
       </template>
     </v-snackbar>
+
   </v-app>
 </template>
 
@@ -93,8 +105,9 @@ import { useTheme } from 'vuetify';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSnackbar } from '~/composables/useSnackbar';
 import { useAuth } from '~/composables/useAuth';
-// ✅ Importamos el nuevo gestor de notificaciones de la campanita
 import { useNotifications } from '~/composables/useNotifications';
+// ✅ Se importa la función para marcar como hecho desde el gestor de referidos
+import { useReferrals } from '~/composables/useReferrals';
 
 const drawer = ref(false);
 const { pageTitle } = usePageTitle();
@@ -104,12 +117,21 @@ const toggleTheme = () => {
 };
 const snackbar = useSnackbar();
 const { user, logout } = useAuth();
-// ✅ Hacemos que la lista de notificaciones y su contador estén disponibles
 const { pendingNotifications, notificationCount } = useNotifications();
+
+// ✅ Se añade la función para manejar el clic en el botón de completar
+const { markFollowUpAsDone } = useReferrals();
+const handleMarkAsDone = async (referralId: string) => {
+  try {
+    await markFollowUpAsDone(referralId);
+    snackbar.showSnackbar({text: "Seguimiento completado.", color: "success"});
+  } catch (error) {
+    snackbar.showSnackbar({text: "Error al marcar como completado.", color: "error"});
+  }
+};
 </script>
 
 <style>
-/* Los estilos no cambian, ahora el fondo lo maneja el tema de Vuetify */
 .main-content {
   min-height: 100vh;
 }
