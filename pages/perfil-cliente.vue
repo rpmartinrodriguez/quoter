@@ -1,5 +1,5 @@
 <template>
-  <div v-if="isDataLoading && !clientName" class="text-center pa-16">
+  <div v-if="isDataLoading" class="text-center pa-16">
     <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
     <div class="mt-4 text-grey">Cargando perfil del cliente...</div>
   </div>
@@ -56,6 +56,16 @@
               <template v-slot:item.type="{ item }"><v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip></template>
               <template v-slot:item.totalAmount="{ item }"><span class="font-weight-bold">{{ formatAsArs(item.totalAmount) }}</span></template>
               <template v-slot:item.products="{ item }"><span>{{ item.products.join(', ') }}</span></template>
+              
+              <template v-slot:item.depositAmount="{ item }">
+                <span>{{ formatAsArs(item.depositAmount) }}</span>
+              </template>
+              <template v-slot:item.installmentsInfo="{ item }">
+                <span>{{ item.installmentsInfo }}</span>
+              </template>
+              <template v-slot:item.paymentEndDate="{ item }">
+                <v-chip v-if="item.type === 'VENTA'" size="small" prepend-icon="mdi-calendar-check">{{ calculatePaymentEndDate(item) }}</v-chip>
+              </template>
             </v-data-table>
           </v-card>
         </v-col>
@@ -73,15 +83,13 @@
               <template v-slot:item.nextFollowUp="{ item }">
                 <v-chip v-if="item.nextFollowUp" :color="getFollowUpColor(item.nextFollowUp)" size="small">
                   <v-icon start size="small">mdi-calendar-clock</v-icon>
-                  {{ new Date(item.nextFollowUp).toLocaleDateString('es-AR') }}
+                  {{ new Date(item.nextFollowUp).toLocaleDateString('es-AR', {timeZone: 'UTC'}) }}
                 </v-chip>
               </template>
               <template v-slot:item.notesFollowUp="{ item }">
                 <div v-if="item.notesFollowUp" class="notes-cell">
                   <v-tooltip location="top">
-                    <template v-slot:activator="{ props }">
-                      <span v-bind="props">{{ item.notesFollowUp }}</span>
-                    </template>
+                    <template v-slot:activator="{ props }"><span v-bind="props">{{ item.notesFollowUp }}</span></template>
                     <div style="max-width: 300px;">{{ item.notesFollowUp }}</div>
                   </v-tooltip>
                 </div>
@@ -102,10 +110,10 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted, watch } from 'vue'; // Se importa 'watch'
+import { ref, computed, onMounted, watch } from 'vue';
 import { useRoute } from 'vue-router';
 import { usePageTitle } from '~/composables/usePageTitle';
-import { useSavedQuotes } from '~/composables/useSavedQuotes';
+import { useSavedQuotes, type ISavedRecord } from '~/composables/useSavedQuotes';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useFormatters } from '~/composables/useFormatters';
 
@@ -118,21 +126,17 @@ const route = useRoute();
 const isDataLoading = computed(() => isLoadingQuotes.value || isLoadingReferrals.value);
 const clientName = ref('');
 
-// ✅ INICIO: LÓGICA MEJORADA PARA REACCIONAR A CAMBIOS EN LA URL
 const updateClientData = (nameFromQuery: string | undefined) => {
   const decodedName = decodeURIComponent(nameFromQuery || '');
   clientName.value = decodedName;
   setTitle(`Perfil de: ${decodedName}`);
 };
 
-// 'watch' observa los cambios en 'route.query.name'.
-// Si cambia (al hacer clic en otra notificación), ejecuta la lógica de nuevo.
 watch(() => route.query.name, (newName) => {
   if (typeof newName === 'string') {
     updateClientData(newName);
   }
-}, { immediate: true }); // 'immediate: true' hace que se ejecute al cargar la página.
-// ✅ FIN: LÓGICA MEJORADA
+}, { immediate: true });
 
 const clientHistory = computed(() => savedRecords.value.filter(r => r.clientName === clientName.value));
 const clientReferrals = computed(() => referrals.value.filter(r => r.sponsor === clientName.value));
@@ -146,20 +150,45 @@ const clientStats = computed(() => {
   };
 });
 
+// ✅ Se actualizan las cabeceras de la tabla de historial
 const historyHeaders = [
-  { title: 'Fecha', key: 'quoteDate' }, { title: 'Tipo', key: 'type' },
-  { title: 'Total', key: 'totalAmount', align: 'end' }, { title: 'Productos', key: 'products', width: '40%' },
+  { title: 'Fecha Venta', key: 'quoteDate' },
+  { title: 'Tipo', key: 'type' },
+  { title: 'Total', key: 'totalAmount', align: 'end' },
+  { title: 'Depósito', key: 'depositAmount', align: 'end' },
+  { title: 'Cuotas', key: 'installmentsInfo' },
+  { title: 'Productos', key: 'products', width: '30%' },
+  { title: 'Finaliza en', key: 'paymentEndDate', sortable: false },
 ];
+
 const referralsHeaders = [
   { title: 'Referido', key: 'referralName' }, { title: 'Estado', key: 'status' },
   { title: 'Próximo Seguimiento', key: 'nextFollowUp' }, { title: 'Notas', key: 'notesFollowUp', width: '35%' },
 ];
 
-const getStatusColor = (status: IReferral['status']) => { /* ... (sin cambios) ... */ };
-const getFollowUpColor = (dateString?: string) => { /* ... (sin cambios) ... */ };
+// ✅ Se añade la nueva función para calcular la fecha de finalización
+const calculatePaymentEndDate = (record: ISavedRecord): string => {
+  if (record.type !== 'VENTA' || !record.installmentsInfo) return '';
+  try {
+    const installmentsMatch = record.installmentsInfo.match(/(\d+)/);
+    if (!installmentsMatch) return '-';
+    
+    const numberOfInstallments = parseInt(installmentsMatch[0], 10);
+    const startDate = new Date(record.quoteDate);
+    
+    // Sumamos 1 mes inicial (primer pago a 30 días) y luego el resto de las cuotas
+    const endDate = new Date(startDate.setMonth(startDate.getMonth() + numberOfInstallments));
+    
+    return endDate.toLocaleDateString('es-AR', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  } catch (error) {
+    return '-';
+  }
+};
+
+const getStatusColor = (status: IReferral['status']) => { /* sin cambios */ };
+const getFollowUpColor = (dateString?: string) => { /* sin cambios */ };
 
 onMounted(() => {
-  // El título ahora lo maneja el 'watch'. Aquí solo nos aseguramos de que los datos se pidan.
   getRecords();
   getReferrals();
 });
