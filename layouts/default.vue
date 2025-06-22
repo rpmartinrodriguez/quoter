@@ -6,6 +6,37 @@
       
       <v-btn :icon="theme.global.current.value.dark ? 'mdi-weather-night' : 'mdi-weather-sunny'" @click="toggleTheme"></v-btn>
 
+      <v-menu location="bottom end" offset="10" :close-on-content-click="false">
+        <template v-slot:activator="{ props }">
+          <v-btn v-bind="props" icon>
+            <v-badge :content="notificationCount" color="error" v-if="notificationCount > 0">
+              <v-icon>mdi-bell</v-icon>
+            </v-badge>
+            <v-icon v-else>mdi-bell-outline</v-icon>
+          </v-btn>
+        </template>
+
+        <v-list elevation="2" density="compact" nav max-width="400">
+          <v-list-subheader>SEGUIMIENTOS PENDIENTES</v-list-subheader>
+          <v-divider></v-divider>
+          
+          <v-list-item
+            v-for="notification in pendingNotifications"
+            :key="notification.id"
+            :to="notification.link"
+            :title="notification.text"
+            :subtitle="notification.subtitle"
+            prepend-icon="mdi-calendar-clock"
+          >
+          </v-list-item>
+          
+          <v-list-item v-if="notificationCount === 0">
+            <v-list-item-title class="text-grey text-caption pa-4 text-center">
+              No tenés seguimientos pendientes. ¡Buen trabajo!
+            </v-list-item-title>
+          </v-list-item>
+        </v-list>
+      </v-menu>
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
     </v-app-bar>
 
@@ -17,13 +48,7 @@
 
       <v-list nav>
         <v-list-item prepend-icon="mdi-calculator" title="Calculadora" to="/"></v-list-item>
-
-        <v-list-item
-          prepend-icon="mdi-account-box-multiple-outline"
-          title="Clientes"
-          to="/clientes"
-        ></v-list-item>
-
+        <v-list-item prepend-icon="mdi-account-box-multiple-outline" title="Clientes" to="/clientes"></v-list-item>
         <v-list-item prepend-icon="mdi-chart-bar" title="Mi Estadística" to="/estadisticas"></v-list-item>
         <v-list-item prepend-icon="mdi-finance" title="Proyección" to="/proyeccion"></v-list-item>
         <v-list-item prepend-icon="mdi-account-group" title="Programa 4/14" to="/programa414"></v-list-item>
@@ -59,7 +84,6 @@
         <v-btn icon="mdi-close" variant="text" @click="snackbar.show.value = false"></v-btn>
       </template>
     </v-snackbar>
-
   </v-app>
 </template>
 
@@ -69,24 +93,19 @@ import { useTheme } from 'vuetify';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSnackbar } from '~/composables/useSnackbar';
 import { useAuth } from '~/composables/useAuth';
+// ✅ Importamos el nuevo gestor de notificaciones de la campanita
+import { useNotifications } from '~/composables/useNotifications';
 
-// Lógica del menú lateral
 const drawer = ref(false);
-
-// Lógica para el título dinámico
 const { pageTitle } = usePageTitle();
-
-// Lógica para el cambio de tema
 const theme = useTheme();
 const toggleTheme = () => {
   theme.global.name.value = theme.global.current.value.dark ? 'miTemaClaro' : 'miTemaOscuro';
 };
-
-// Lógica para las notificaciones
 const snackbar = useSnackbar();
-
-// Lógica de autenticación
 const { user, logout } = useAuth();
+// ✅ Hacemos que la lista de notificaciones y su contador estén disponibles
+const { pendingNotifications, notificationCount } = useNotifications();
 </script>
 
 <style>
