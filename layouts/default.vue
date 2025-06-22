@@ -17,18 +17,18 @@
         </template>
 
         <v-list elevation="2" density="compact" nav max-width="400">
-          <v-list-subheader>SEGUIMIENTOS PENDIENTES</v-list-subheader>
+          <v-list-subheader>CENTRO DE NOTIFICACIONES</v-list-subheader>
           <v-divider></v-divider>
           
           <v-list-item
-            v-for="notification in pendingNotifications"
+            v-for="notification in allNotifications"
             :key="notification.id"
             :to="notification.link"
             :title="notification.text"
             :subtitle="notification.subtitle"
-            prepend-icon="mdi-calendar-clock"
+            :prepend-icon="notification.icon"
           >
-            <template v-slot:append>
+            <template v-if="notification.id.startsWith('ref-')" v-slot:append>
               <v-btn
                 icon="mdi-check"
                 variant="text"
@@ -42,12 +42,11 @@
           
           <v-list-item v-if="notificationCount === 0">
             <v-list-item-title class="text-grey text-caption pa-4 text-center">
-              No tenés seguimientos pendientes. ¡Buen trabajo!
+              No tenés notificaciones pendientes. ¡Buen trabajo!
             </v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
-
       <v-app-bar-nav-icon @click.stop="drawer = !drawer"></v-app-bar-nav-icon>
     </v-app-bar>
 
@@ -106,7 +105,6 @@ import { usePageTitle } from '~/composables/usePageTitle';
 import { useSnackbar } from '~/composables/useSnackbar';
 import { useAuth } from '~/composables/useAuth';
 import { useNotifications } from '~/composables/useNotifications';
-// ✅ Se importa la función para marcar como hecho desde el gestor de referidos
 import { useReferrals } from '~/composables/useReferrals';
 
 const drawer = ref(false);
@@ -117,11 +115,15 @@ const toggleTheme = () => {
 };
 const snackbar = useSnackbar();
 const { user, logout } = useAuth();
-const { pendingNotifications, notificationCount } = useNotifications();
 
-// ✅ Se añade la función para manejar el clic en el botón de completar
+// ✅ Se obtienen los datos del motor de notificaciones actualizado
+const { allNotifications, notificationCount } = useNotifications();
+// ✅ Se importa la función para marcar como hecho
 const { markFollowUpAsDone } = useReferrals();
-const handleMarkAsDone = async (referralId: string) => {
+
+const handleMarkAsDone = async (notificationId: string) => {
+  // Extraemos el ID real del referido desde el ID de la notificación (ej: "ref-123xyz")
+  const referralId = notificationId.substring(4);
   try {
     await markFollowUpAsDone(referralId);
     snackbar.showSnackbar({text: "Seguimiento completado.", color: "success"});
