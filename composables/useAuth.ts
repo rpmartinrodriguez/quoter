@@ -1,7 +1,7 @@
-import { ref, onMounted } from 'vue';
+// composables/useAuth.ts
+import { ref } from 'vue';
 import type { Models } from 'appwrite';
 
-// Estado global para el usuario, accesible en toda la app
 const user = ref<Models.User<Models.Preferences> | null>(null);
 
 export const useAuth = () => {
@@ -10,9 +10,8 @@ export const useAuth = () => {
 
   const fetchCurrentUser = async () => {
     try {
-      const currentUser = await account.get();
-      user.value = currentUser;
-    } catch (error) {
+      user.value = await account.get();
+    } catch (e) {
       user.value = null;
     }
   };
@@ -28,16 +27,5 @@ export const useAuth = () => {
     await router.push('/login');
   };
 
-  onMounted(() => {
-    // ✅ Mejora: Quitamos el "if (!user.value)". Esto fuerza a que se verifique la sesión
-    // del usuario cada vez que el layout principal se carga, lo cual es más seguro.
-    fetchCurrentUser();
-  });
-
-  return {
-    user,
-    login,
-    logout,
-    fetchCurrentUser,
-  };
+  return { user, login, logout, fetchCurrentUser };
 };
