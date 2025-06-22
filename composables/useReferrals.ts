@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue';
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 
-// ✅ Se añade el campo para saber si el seguimiento fue completado
+// ✅ Se añade 'userId' a la interfaz
 export interface IReferral {
   $id: string;
   sponsor: string;
@@ -13,7 +13,8 @@ export interface IReferral {
   loadDate: string;
   nextFollowUp?: string;
   notesFollowUp?: string;
-  followUpCompleted?: boolean; // <-- NUEVO
+  followUpCompleted?: boolean;
+  userId: string; // <-- NUEVO
 }
 
 const referrals = ref<IReferral[]>([]);
@@ -22,12 +23,19 @@ const isLoading = ref(false);
 export const useReferrals = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
+  const { user } = useAuth(); // ✅ Se obtiene el usuario actual
   const COLLECTION_ID = config.public.cReferrals;
 
   const getReferrals = async () => {
+    if (!user.value) {
+      referrals.value = [];
+      return;
+    }
     isLoading.value = true;
     try {
       const response = await databases.listDocuments(config.public.database, COLLECTION_ID, [
+        // ✅ Se filtra por el ID del usuario conectado
+        Query.equal("userId", user.value.$id),
         Query.orderDesc('loadDate')
       ]);
       referrals.value = response.documents as unknown as IReferral[];
@@ -38,16 +46,29 @@ export const useReferrals = () => {
     }
   };
 
-  const addReferral = async (data: Omit<IReferral, '$id' | 'loadDate' | 'status'>) => {
+  const addReferral = async (data: Omit<IReferral, '$id' | 'loadDate' | 'status' | 'userId'>) => {
+    if (!user.value) throw new Error("No hay un usuario autenticado para asignar el referido.");
+    const userId = user.value.$id;
     try {
-      // Al crear, nos aseguramos que 'completado' sea falso por defecto
       const doc = {
         ...data,
         status: 'Pendiente',
         loadDate: new Date().toISOString(),
         followUpCompleted: false,
+        userId: userId, // ✅ Se "etiqueta" el nuevo referido
       };
-      await databases.createDocument(config.public.database, COLLECTION_ID, ID.unique(), doc);
+      await databases.createDocument(
+        config.public.database, 
+        COLLECTION_ID, 
+        ID.unique(), 
+        doc,
+        // ✅ Se le ponen permisos para que solo el dueño pueda acceder
+        [
+          Permission.read(Role.user(userId)),
+          Permission.update(Role.user(userId)),
+          Permission.delete(Role.user(userId)),
+        ]
+      );
     } catch (error) {
       console.error("❌ Error al añadir referido:", error);
       throw error;
@@ -69,12 +90,7 @@ export const useReferrals = () => {
 
   const updateReferralData = async (id: string, dataToUpdate: Partial<IReferral>) => {
     try {
-      await databases.updateDocument(
-        config.public.database,
-        COLLECTION_ID,
-        id,
-        dataToUpdate
-      );
+      await databases.updateDocument(config.public.database, COLLECTION_ID, id, dataToUpdate);
       await getReferrals();
     } catch (error) {
       console.error(`❌ Error al actualizar datos del referido ${id}:`, error);
@@ -82,27 +98,24 @@ export const useReferrals = () => {
     }
   };
 
-  // ✅ --- INICIO: NUEVA FUNCIÓN PARA MARCAR SEGUIMIENTO COMO HECHO ---
   const markFollowUpAsDone = async (id: string) => {
     try {
-      await databases.updateDocument(
-        config.public.database,
-        COLLECTION_ID,
-        id,
-        { followUpCompleted: true }
-      );
-      // Refrescamos la lista para que el cambio se refleje en toda la app
+      await databases.updateDocument(config.public.database, COLLECTION_ID, id, { followUpCompleted: true });
       await getReferrals();
     } catch (error) {
       console.error(`❌ Error al completar el seguimiento del referido ${id}:`, error);
       throw error;
     }
   };
-  // ✅ --- FIN: NUEVA FUNCIÓN ---
 
-  if (referrals.value.length === 0 && !isLoading.value) {
-    getReferrals();
-  }
+  // ✅ Se reemplaza la carga inicial por un 'watch' reactivo al estado del usuario
+  watch(user, (newUser) => {
+    if (newUser) {
+      getReferrals();
+    } else {
+      referrals.value = [];
+    }
+  }, { immediate: true });
 
   return { 
     referrals, 
@@ -111,6 +124,6 @@ export const useReferrals = () => {
     addReferral, 
     updateReferralStatus,
     updateReferralData,
-    markFollowUpAsDone, // ✅ Se exporta la nueva función
+    markFollowUpAsDone,
   };
 };
