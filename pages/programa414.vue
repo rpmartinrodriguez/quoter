@@ -23,7 +23,7 @@
           </template>
         </v-autocomplete>
         <v-divider class="mt-6"></v-divider>
-
+        <div class="text-overline my-4">Añadir Referidos</div>
         <div v-for="(referral, index) in newReferralsList" :key="index" class="referral-form-item my-4 pa-4 border rounded">
           <div class="d-flex justify-space-between align-center mb-2">
             <h4 class="text-h6">Referido #{{ index + 1 }}</h4>
@@ -36,12 +36,11 @@
             <v-col cols="12" md="6"><v-text-field v-model.number="referral.peopleCount" label="Cantidad de Personas" type="number" density="compact" variant="outlined"></v-text-field></v-col>
           </v-row>
         </div>
-
-        <div class="d-flex ga-4 mt-4">
-          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="outlined">Añadir Otro Referido</v-btn>
+        <v-card-actions class="pa-0 mt-4">
+          <v-btn @click="addReferralForm" prepend-icon="mdi-plus" color="secondary" variant="text">Añadir Otro Referido</v-btn>
           <v-spacer></v-spacer>
-          <v-btn @click="handleSaveAllReferrals" color="success" size="large" prepend-icon="mdi-content-save-all" :disabled="!isFormValid" :loading="isSaving">Guardar Todos</v-btn>
-        </div>
+          <v-btn @click="handleSaveAllReferrals" color="success" size="large" variant="flat" prepend-icon="mdi-content-save-all" :disabled="!isFormValid" :loading="isSaving">Guardar Todos</v-btn>
+        </v-card-actions>
       </v-card-text>
     </v-card>
     
@@ -62,12 +61,8 @@
         hover
         no-data-text="Aún no hay referidos cargados."
       >
-        <template v-slot:header.sponsor="{ column }">
-          <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedSponsor ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedSponsor = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="sponsorName in uniqueSponsors" :key="sponsorName" @click="selectedSponsor = sponsorName" :title="sponsorName"></v-list-item></v-list></v-menu>
-        </template>
-        <template v-slot:header.status="{ column }">
-          <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedStatus ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedStatus = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="statusName in statusOptions" :key="statusName" @click="selectedStatus = statusName" :title="statusName"></v-list-item></v-list></v-menu>
-        </template>
+        <template v-slot:header.sponsor="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedSponsor ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedSponsor = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="sponsorName in uniqueSponsors" :key="sponsorName" @click="selectedSponsor = sponsorName" :title="sponsorName"></v-list-item></v-list></v-menu></template>
+        <template v-slot:header.status="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedStatus ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedStatus = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="statusName in statusOptions" :key="statusName" @click="selectedStatus = statusName" :title="statusName"></v-list-item></v-list></v-menu></template>
         
         <template v-slot:item.loadDate="{ item }"><span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span></template>
         <template v-slot:item.status="{ item }">
@@ -78,11 +73,12 @@
             density="compact" hide-details variant="outlined" :bg-color="getStatusColor(item.status)" class="status-select"
           ></v-select>
         </template>
-
         <template v-slot:item.actions="{ item }">
-          <v-btn icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" title="Editar Referido"></v-btn>
+          <div class="d-flex align-center justify-center ga-1">
+            <v-btn icon="mdi-note-text-outline" size="small" variant="text" @click="openFollowUpDialog(item)" title="Ver/Editar Notas y Seguimiento"></v-btn>
+            <v-btn icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" title="Editar Referido"></v-btn>
+          </div>
         </template>
-
       </v-data-table>
     </v-card>
 
@@ -92,11 +88,41 @@
       @close="editDialog = false"
       @save="handleUpdateReferral"
     />
+
+    <v-dialog v-model="followUpDialog.show" persistent max-width="500px">
+      <v-card>
+        <v-card-title>
+          <span class="text-h5">Seguimiento de: {{ followUpDialog.referral?.referralName }}</span>
+        </v-card-title>
+        <v-card-text class="py-4">
+          <v-container>
+            <v-textarea
+              v-model="followUpDialog.notes"
+              label="Notas de seguimiento"
+              rows="10"
+              variant="outlined"
+              hint="Escribí acá los detalles de tus conversaciones."
+            ></v-textarea>
+            <v-text-field
+              v-model="followUpDialog.date"
+              label="Próximo Contacto"
+              type="date"
+              class="mt-2"
+            ></v-text-field>
+          </v-container>
+        </v-card-text>
+        <v-card-actions>
+          <v-spacer></v-spacer>
+          <v-btn text @click="followUpDialog.show = false">Cancelar</v-btn>
+          <v-btn color="primary" variant="flat" @click="saveFollowUp">Guardar Seguimiento</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useSnackbar } from '~/composables/useSnackbar';
@@ -104,7 +130,7 @@ import EditReferralDialog from '~/components/EditReferralDialog.vue';
 import { useSavedQuotes } from '~/composables/useSavedQuotes';
 
 const { referrals, isLoading, addReferral, updateReferralStatus, getReferrals, updateReferralData } = useReferrals();
-const { savedRecords } = useSavedQuotes(); // Se obtienen los registros de ventas/cotizaciones
+const { savedRecords } = useSavedQuotes();
 const { showSnackbar } = useSnackbar();
 const { setTitle } = usePageTitle();
 
@@ -115,6 +141,13 @@ const selectedSponsor = ref<string | null>(null);
 const selectedStatus = ref<string | null>(null);
 const editDialog = ref(false);
 const recordToEdit = ref<IReferral | null>(null);
+
+const followUpDialog = reactive({
+  show: false,
+  referral: null as IReferral | null,
+  date: '',
+  notes: '',
+});
 
 const openEditDialog = (referral: IReferral) => {
   recordToEdit.value = referral;
@@ -134,7 +167,29 @@ const handleUpdateReferral = async (updatedData: Partial<IReferral>) => {
   }
 };
 
-// Se crea la lista de nombres de clientes únicos para el autocomplete
+const openFollowUpDialog = (referral: IReferral) => {
+  followUpDialog.referral = referral;
+  followUpDialog.date = referral.followUpDate ? new Date(referral.followUpDate).toISOString().substr(0, 10) : '';
+  followUpDialog.notes = referral.followUpNotes || '';
+  followUpDialog.show = true;
+};
+
+const saveFollowUp = async () => {
+  if (!followUpDialog.referral) return;
+  try {
+    const dataToUpdate = {
+      followUpDate: followUpDialog.date ? new Date(followUpDialog.date).toISOString() : undefined,
+      followUpNotes: followUpDialog.notes
+    };
+    await updateReferralData(followUpDialog.referral.$id, dataToUpdate);
+    showSnackbar({ text: 'Seguimiento guardado.' });
+  } catch (e) {
+    showSnackbar({ text: 'Error al guardar seguimiento.', color: 'error'});
+  } finally {
+    followUpDialog.show = false;
+  }
+};
+
 const uniqueClientNames = computed(() => {
   const clientNames = new Set(savedRecords.value.map(r => r.clientName));
   return Array.from(clientNames).sort();
@@ -174,8 +229,7 @@ const removeReferralForm = (index: number) => { newReferralsList.value.splice(in
 const handleSaveAllReferrals = async () => {
   if (!isFormValid.value) return;
   isSaving.value = true;
-  const sponsorName = sponsor.value;
-
+  const sponsorName = typeof sponsor.value === 'string' ? sponsor.value : (sponsor.value as any)?.title || '';
   let successfulSaves = 0;
   for (const referral of newReferralsList.value) {
     try {
@@ -185,12 +239,10 @@ const handleSaveAllReferrals = async () => {
       showSnackbar({ text: `Error al guardar a "${referral.referralName}": ${error.message}`, color: 'error' });
     }
   }
-  
   if (successfulSaves > 0) {
     await getReferrals();
     showSnackbar({ text: `${successfulSaves} referidos guardados con éxito.` });
   }
-
   isSaving.value = false;
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
   sponsor.value = '';
