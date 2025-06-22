@@ -1,39 +1,31 @@
-import { ref, watch } from 'vue';
-import { ID, Query, Permission, Role } from 'appwrite';
+import { ref } from 'vue';
+import { ID, Query } from 'appwrite';
 
-// ✅ 1. Añadimos 'userId' a la interfaz
+// ✅ La interfaz vuelve a ser simple, sin userId.
 interface Quote {
   $id: string;
   quantity: number;
   percentage: number;
-  userId: string;
 }
 
-// El estado sigue siendo un singleton compartido
+// El estado es un singleton compartido por todos.
 const quotes = ref<Quote[]>([]);
 const isLoading = ref<boolean>(false);
 
 export const useQuote = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  const { user } = useAuth(); // ✅ 2. Obtenemos el estado del usuario logueado
-  const COLLECTION_ID = config.public.cQuotes;
+  // ✅ Ya no necesita a useAuth().
 
   const getQuotes = async () => {
-    if (!user.value) {
-      quotes.value = [];
-      return;
-    }
+    if (isLoading.value) return;
     isLoading.value = true;
     try {
+      // ✅ La consulta ya no filtra por usuario, trae todos los documentos.
       const res = await databases.listDocuments(
         config.public.database,
-        COLLECTION_ID,
-        [
-          // ✅ 3. Filtramos los datos por el ID del usuario conectado
-          Query.equal("userId", user.value.$id),
-          Query.orderAsc("quantity")
-        ]
+        config.public.cQuotes,
+        [Query.orderAsc("quantity")]
       );
       quotes.value = res.documents as unknown as Quote[];
     } catch (error) {
@@ -45,28 +37,18 @@ export const useQuote = () => {
   };
 
   const createQuote = async (quantity: number, percentage: number) => {
-    if (!user.value) return;
-    const userId = user.value.$id;
     try {
+      // ✅ Al crear, ya no añade userId ni permisos de usuario. Es un dato público.
       await databases.createDocument(
         config.public.database,
         COLLECTION_ID,
         ID.unique(),
-        {
-          quantity,
-          percentage,
-          userId: userId // ✅ 4. "Etiquetamos" el nuevo dato
-        },
-        // ✅ 5. Le ponemos un "candado" de permisos
-        [
-          Permission.read(Role.user(userId)),
-          Permission.update(Role.user(userId)),
-          Permission.delete(Role.user(userId)),
-        ]
+        { quantity, percentage }
       );
       await getQuotes();
     } catch (error) { 
       console.error("❌ Error al crear cuota:", error);
+      throw error;
     }
   };
 
@@ -76,6 +58,7 @@ export const useQuote = () => {
       await getQuotes();
     } catch (error) { 
       console.error("❌ Error al actualizar cuota:", error);
+      throw error;
     }
   };
 
@@ -85,17 +68,14 @@ export const useQuote = () => {
       await getQuotes();
     } catch (error) { 
       console.error("❌ Error al eliminar cuota:", error);
+      throw error;
     }
   };
 
-  // ✅ 6. Reemplazamos la carga inicial por un 'watch' reactivo
-  watch(user, (newUser) => {
-    if (newUser) {
-      getQuotes();
-    } else {
-      quotes.value = [];
-    }
-  }, { immediate: true });
+  // ✅ Volvemos al inicializador simple, ya que no depende del estado del usuario.
+  if (quotes.value.length === 0 && !isLoading.value) {
+    getQuotes();
+  }
 
   return {
     quotes,
@@ -103,5 +83,6 @@ export const useQuote = () => {
     createQuote,
     updateQuote,
     deleteQuote,
+    getQuotes,
   };
 };
