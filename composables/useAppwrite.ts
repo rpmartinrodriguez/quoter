@@ -1,11 +1,12 @@
-import { Client, Databases } from "appwrite";
+// composables/useAppwrite.ts
+import { Client, Databases, Account } from "appwrite";
 
 let client: Client | null = null;
 let databases: Databases | null = null;
+let account: Account | null = null;
 
 export const useAppwrite = () => {
   const config = useRuntimeConfig();
-
   if (!client) {
     client = new Client()
       .setEndpoint(config.public.endpoint)
@@ -14,7 +15,8 @@ export const useAppwrite = () => {
   if (!databases) {
     databases = new Databases(client);
   }
-  return {
-    databases,
-  };
+  if (!account) {
+    account = new Account(client);
+  }
+  return { databases, account };
 };
