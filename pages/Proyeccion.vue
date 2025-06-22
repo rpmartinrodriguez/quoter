@@ -5,7 +5,7 @@
       Simulador de Proyección de Ventas
     </v-card-title>
     
-    <div v-if="isLoadingSales || isLoadingReferrals" class="text-center pa-8">
+    <div v-if="isLoadingSales || isLoadingReferrals || isLoadingProducts" class="text-center pa-8">
       <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
       <div class="mt-4 text-grey">Cargando datos históricos...</div>
     </div>
@@ -25,7 +25,7 @@
         </v-col>
         <v-col cols="12" md="6">
           <v-card class="pa-4" variant="outlined" height="100%">
-            <label class="text-overline">2. Simular Mejora en Tasa de Cierre</label>
+            <label class="text-overline">2. Simular Mejora en Tasa de Conversión</label>
             <v-slider v-model="targetConversionRate" :step="1" thumb-label color="secondary" class="mt-2" :max="100">
               <template v-slot:append>
                 <v-text-field v-model="targetConversionRate" type="number" style="width: 80px" density="compact" hide-details variant="outlined"></v-text-field>
@@ -102,7 +102,7 @@
                   </v-list-item-subtitle>
                 </v-list-item>
                  <v-list-item v-if="projectedProductFocus.products.length === 0">
-                  <v-list-item-title>No hay ventas registradas para generar una proyección de productos.</v-list-item-title>
+                  <v-list-item-title>No hay ventas registradas en el período base para generar una proyección.</v-list-item-title>
                 </v-list-item>
               </v-list>
             </v-card-text>
@@ -119,11 +119,12 @@ import { usePageTitle } from '~/composables/usePageTitle';
 import { useSavedQuotes } from '~/composables/useSavedQuotes';
 import { useFormatters } from '~/composables/useFormatters';
 import { useReferrals } from '~/composables/useReferrals';
+// ✅ 1. Se importa el gestor de productos para obtener los precios
 import { useProducts } from '~/composables/useProducts';
 
 const { getRecords, savedRecords, isLoading: isLoadingSales } = useSavedQuotes();
 const { getReferrals, referrals, isLoading: isLoadingReferrals } = useReferrals();
-const { list: productList } = useProducts();
+const { list: productList, getProducts, isLoading: isLoadingProducts } = useProducts(); // ✅ Se obtiene la lista, la función de carga y el estado de carga
 const { formatAsArs } = useFormatters();
 const { setTitle } = usePageTitle();
 
@@ -153,11 +154,10 @@ const averageTicket = computed(() => {
 
 const demoToSaleRate = computed(() => {
   const demoReferrals = referrals.value.filter(r => r.status === 'Demo');
-  const totalDemos = demoReferrals.length;
-  if (totalDemos === 0) return 0;
+  if (demoReferrals.length === 0) return 0;
   const clientsWhoBought = new Set(savedRecords.value.filter(r => r.type === 'VENTA').map(r => r.clientName.toLowerCase().trim()));
   const successfulDemos = demoReferrals.filter(r => clientsWhoBought.has(r.referralName.toLowerCase().trim())).length;
-  return Math.round((successfulDemos / totalDemos) * 100);
+  return Math.round((successfulDemos / demoReferrals.length) * 100);
 });
 
 const leadToDemoRate = computed(() => {
@@ -174,8 +174,9 @@ const projection = computed(() => {
   const projectedDemosNeeded = demoRate > 0 ? Math.ceil(projectedSalesCount / demoRate) : projectedSalesCount;
   const leadRate = leadToDemoRate.value / 100;
   const projectedReferralsToContact = leadRate > 0 ? Math.ceil(projectedDemosNeeded / leadRate) : 0;
+  const projectedSalesAmount = currentMonthStats.value.totalSales > 0 ? currentMonthStats.value.totalSales * growthFactor : 0;
   return {
-    projectedSalesAmount: currentMonthStats.value.totalSales > 0 ? currentMonthStats.value.totalSales * growthFactor : 0,
+    projectedSalesAmount,
     projectedSalesCount,
     additionalSalesNeeded: Math.max(0, projectedSalesCount - currentMonthStats.value.salesCount),
     projectedDemosNeeded,
@@ -191,47 +192,75 @@ const actionableGoals = computed(() => {
   return { weeklySalesTarget, dailyQuotesTarget };
 });
 
+// ✅ LÓGICA DE FOCO DE PRODUCTOS CORREGIDA Y COMPLETA
 const projectedProductFocus = computed(() => {
   let salesRecordsForRanking = currentMonthStats.value.salesRecords;
   let subtitle = "Para alcanzar tu objetivo, basado en la facturación de este mes.";
+
   if (salesRecordsForRanking.length === 0) {
     salesRecordsForRanking = savedRecords.value.filter(r => r.type === 'VENTA');
     subtitle = "No hay ventas este mes. Sugerencia basada en tu historial completo.";
   }
+
   const baseTotalSales = salesRecordsForRanking.reduce((sum, r) => sum + r.totalAmount, 0);
   if (baseTotalSales === 0) {
-    return { subtitle: "Para alcanzar tu objetivo...", products: [] };
+    return { subtitle: "No hay ventas en el período base para proyectar.", products: [] };
   }
+
   const productValueMap = new Map<string, number>();
   for (const record of salesRecordsForRanking) {
     for (const productName of record.products) {
+      // Para este cálculo, asumimos que el precio de lista es una buena aproximación del valor
       const productInfo = productList.value.find(p => p.detail === productName);
       if (productInfo) {
         const currentValue = productValueMap.get(productName) || 0;
+        // Ojo: Esto es una simplificación. Si una venta tiene múltiples productos,
+        // no sabemos qué parte del 'totalAmount' corresponde a cada uno.
+        // Una aproximación es sumar el precio de lista de cada producto.
         productValueMap.set(productName, currentValue + productInfo.price);
       }
     }
   }
+  
+  // El total de valor de productos puede no ser igual al total de ventas, es una aproximación
+  const totalProductValueInSales = Array.from(productValueMap.values()).reduce((a, b) => a + b, 0);
+  if(totalProductValueInSales === 0) return { subtitle: "No se pudo calcular el valor de los productos vendidos.", products: [] };
+
   const productContributions = Array.from(productValueMap.entries()).map(([name, totalValue]) => ({
     name,
     totalValue,
-    contributionPercentage: Math.round((totalValue / baseTotalSales) * 100),
+    contributionPercentage: Math.round((totalValue / totalProductValueInSales) * 100),
   }));
+
   const additionalSalesAmountNeeded = projection.value.projectedSalesAmount - currentMonthStats.value.totalSales;
+  
   const productFocus = productContributions.map(product => {
     const productInfo = productList.value.find(p => p.detail === product.name);
-    const productPrice = productInfo ? productInfo.price : 0;
-    const projectedAdditionalAmount = additionalSalesAmountNeeded * (product.contributionPercentage / 100);
+    const productPrice = productInfo ? productInfo.price : 1; // Evitar división por cero
+    const projectedAdditionalAmount = additionalSalesAmountNeeded > 0 ? additionalSalesAmountNeeded * (product.contributionPercentage / 100) : 0;
     const projectedAdditionalUnits = productPrice > 0 ? Math.ceil(projectedAdditionalAmount / productPrice) : 0;
-    return { name: product.name, contributionPercentage: product.contributionPercentage, projectedAdditionalAmount, projectedAdditionalUnits, currentCount: Math.round(product.totalValue / (productPrice || 1)) };
+    
+    return {
+      name: product.name,
+      contributionPercentage: product.contributionPercentage,
+      projectedAdditionalAmount,
+      projectedAdditionalUnits,
+      currentCount: Math.round(product.totalValue / productPrice),
+    };
   });
+  
   productFocus.sort((a, b) => b.projectedAdditionalAmount - a.projectedAdditionalAmount);
-  return { subtitle, products: productFocus.slice(0, 5) };
+  
+  return {
+    subtitle,
+    products: productFocus.filter(p => p.projectedAdditionalUnits > 0).slice(0, 5),
+  };
 });
 
 onMounted(async () => {
   setTitle('Proyección de Ventas');
-  await Promise.all([getRecords(), getReferrals(), useProducts().getProducts()]);
+  // ✅ Se añade la carga de la lista de productos
+  await Promise.all([getRecords(), getReferrals(), getProducts()]);
   targetConversionRate.value = demoToSaleRate.value;
 });
 </script>
