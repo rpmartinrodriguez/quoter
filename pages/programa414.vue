@@ -62,7 +62,14 @@
         <template v-slot:header.sponsor="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedSponsor ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedSponsor = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="sponsorName in uniqueSponsors" :key="sponsorName" @click="selectedSponsor = sponsorName" :title="sponsorName"></v-list-item></v-list></v-menu></template>
         <template v-slot:header.status="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedStatus ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedStatus = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="statusName in statusOptions" :key="statusName" @click="selectedStatus = statusName" :title="statusName"></v-list-item></v-list></v-menu></template>
         <template v-slot:item.loadDate="{ item }"><span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span></template>
-        <template v-slot:item.status="{ item }"><v-select v-model="item.status" :items="statusOptions" @update:modelValue="(newStatus) => updateReferralStatus(item.$id, newStatus as IReferral['status'])" density="compact" hide-details variant="outlined" :bg-color="getStatusColor(item.status)" class="status-select"></v-select></template>
+        <template v-slot:item.status="{ item }">
+          <v-select
+            v-model="item.status"
+            :items="statusOptions"
+            @update:modelValue="(newStatus) => updateReferralStatus(item.$id, newStatus as IReferral['status'])"
+            density="compact" hide-details variant="outlined" :bg-color="getStatusColor(item.status)" class="status-select"
+          ></v-select>
+        </template>
         <template v-slot:item.actions="{ item }">
           <div class="d-flex align-center justify-center ga-1">
             <v-btn icon="mdi-note-text-outline" size="small" variant="text" @click="openFollowUpDialog(item)" title="Ver/Editar Notas y Seguimiento"></v-btn>
@@ -72,7 +79,12 @@
       </v-data-table>
     </v-card>
 
-    <EditReferralDialog :show="editDialog" :referral="recordToEdit" @close="editDialog = false" @save="handleUpdateReferral" />
+    <EditReferralDialog
+      :show="editDialog"
+      :referral="recordToEdit"
+      @close="editDialog = false"
+      @save="handleUpdateReferral"
+    />
     <v-dialog v-model="followUpDialog.show" persistent max-width="500px">
       <v-card>
         <v-card-title><span class="text-h5">Seguimiento de: {{ followUpDialog.referral?.referralName }}</span></v-card-title>
@@ -134,18 +146,19 @@ const handleUpdateReferral = async (updatedData: Partial<IReferral>) => {
 
 const openFollowUpDialog = (referral: IReferral) => {
   followUpDialog.referral = referral;
-  followUpDialog.date = referral.followUpDate ? new Date(referral.followUpDate).toISOString().substr(0, 10) : '';
-  followUpDialog.notes = referral.followUpNotes || '';
+  // ✅ Lee los datos de los NUEVOS atributos
+  followUpDialog.date = referral.nextFollowUp ? new Date(referral.nextFollowUp).toISOString().substr(0, 10) : '';
+  followUpDialog.notes = referral.notesFollowUp || '';
   followUpDialog.show = true;
 };
 
 const saveFollowUp = async () => {
   if (!followUpDialog.referral) return;
   try {
+    // ✅ Guarda los datos en los NUEVOS atributos
     const dataToUpdate = {
-      // ✅ CORRECCIÓN DEFINITIVA: Se usa 'followUpDate', el nombre correcto del atributo.
-      followUpDate: followUpDialog.date ? new Date(followUpDialog.date).toISOString() : undefined,
-      followUpNotes: followUpDialog.notes
+      nextFollowUp: followUpDialog.date ? new Date(followUpDialog.date).toISOString() : undefined,
+      notesFollowUp: followUpDialog.notes
     };
     await updateReferralData(followUpDialog.referral.$id, dataToUpdate);
     showSnackbar({ text: 'Seguimiento guardado.' });
@@ -167,8 +180,8 @@ const filteredReferrals = computed(() => {
 
 const headers = [
   { title: 'Fecha de Carga', key: 'loadDate' }, { title: 'Sponsor', key: 'sponsor' }, { title: 'Referido', key: 'referralName' },
-  { title: 'Teléfono', key: 'phone' }, { title: 'Ocupación', key: 'occupation' }, { title: 'Estado', key: 'status', width: '200px' },
-  { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },
+  { title: 'Teléfono', key: 'phone' }, { title: 'Ocupación', key: 'occupation' },
+  { title: 'Estado', key: 'status', width: '200px' }, { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },
 ];
 const statusOptions = ['Pendiente', 'Demo', 'No Acepta', 'No Contesta'];
 
