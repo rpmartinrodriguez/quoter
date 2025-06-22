@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue';
-import { ID, Query } from 'appwrite';
+import { ID, Query, Permission, Role } from 'appwrite';
 
-// ✅ Se añaden los nuevos campos opcionales para el seguimiento
+// ✅ Se actualiza la interfaz para usar los nuevos nombres de atributos
 export interface IReferral {
   $id: string;
   sponsor: string;
@@ -11,8 +11,8 @@ export interface IReferral {
   peopleCount?: number;
   status: 'Pendiente' | 'Demo' | 'No Acepta' | 'No Contesta';
   loadDate: string;
-  followUpDate?: string;   // <-- NUEVO
-  followUpNotes?: string; // <-- NUEVO
+  nextFollowUp?: string;   // <-- Nombre corregido
+  notesFollowUp?: string; // <-- Nombre corregido
 }
 
 const referrals = ref<IReferral[]>([]);
@@ -58,8 +58,7 @@ export const useReferrals = () => {
       if (index !== -1) {
         referrals.value[index].status = status;
       }
-    } catch (error)
-    {
+    } catch (error) {
       console.error("❌ Error al actualizar el estado del referido:", error);
       throw error;
     }
@@ -73,7 +72,6 @@ export const useReferrals = () => {
         id,
         dataToUpdate
       );
-      // Después de actualizar, refrescamos la lista para ver los cambios
       await getReferrals();
     } catch (error) {
       console.error(`❌ Error al actualizar datos del referido ${id}:`, error);
