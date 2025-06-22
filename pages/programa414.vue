@@ -16,9 +16,7 @@
         >
           <template v-slot:no-data>
             <v-list-item>
-              <v-list-item-title>
-                Escribí un nombre para usarlo como Sponsor.
-              </v-list-item-title>
+              <v-list-item-title>Escribí un nombre para usarlo como Sponsor.</v-list-item-title>
             </v-list-item>
           </template>
         </v-autocomplete>
@@ -52,7 +50,15 @@
           <v-col cols="12" md="4"><v-select v-model="selectedStatus" :items="statusOptions" label="Filtrar por Estado" variant="outlined" density="compact" clearable hide-details></v-select></v-col>
         </v-row>
       </v-card-text>
-      <v-data-table :headers="headers" :items="filteredReferrals" :loading="isLoading" item-value="$id" hover no-data-text="Aún no hay referidos cargados.">
+      
+      <v-data-table
+        :headers="headers"
+        :items="filteredReferrals"
+        :loading="isLoading"
+        item-value="$id"
+        hover
+        no-data-text="Aún no hay referidos cargados."
+      >
         <template v-slot:header.sponsor="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedSponsor ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedSponsor = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="sponsorName in uniqueSponsors" :key="sponsorName" @click="selectedSponsor = sponsorName" :title="sponsorName"></v-list-item></v-list></v-menu></template>
         <template v-slot:header.status="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedStatus ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedStatus = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="statusName in statusOptions" :key="statusName" @click="selectedStatus = statusName" :title="statusName"></v-list-item></v-list></v-menu></template>
         <template v-slot:item.loadDate="{ item }"><span>{{ new Date(item.loadDate).toLocaleDateString('es-AR') }}</span></template>
@@ -108,7 +114,11 @@ const editDialog = ref(false);
 const recordToEdit = ref<IReferral | null>(null);
 const followUpDialog = reactive({ show: false, referral: null as IReferral | null, date: '', notes: '' });
 
-const openEditDialog = (referral: IReferral) => { recordToEdit.value = referral; editDialog.value = true; };
+const openEditDialog = (referral: IReferral) => {
+  recordToEdit.value = referral;
+  editDialog.value = true;
+};
+
 const handleUpdateReferral = async (updatedData: Partial<IReferral>) => {
   if (!recordToEdit.value) return;
   try {
@@ -116,6 +126,7 @@ const handleUpdateReferral = async (updatedData: Partial<IReferral>) => {
     showSnackbar({text: 'Referido actualizado con éxito', color: 'success'});
   } catch (error) {
     showSnackbar({text: 'Error al actualizar el referido', color: 'error'});
+    console.error("Fallo al actualizar", error);
   } finally {
     editDialog.value = false;
   }
@@ -128,20 +139,18 @@ const openFollowUpDialog = (referral: IReferral) => {
   followUpDialog.show = true;
 };
 
-// ✅ --- FUNCIÓN DE GUARDADO DE SEGUIMIENTO CON ALERTA DE DIAGNÓSTICO ---
 const saveFollowUp = async () => {
   if (!followUpDialog.referral) return;
   try {
     const dataToUpdate = {
+      // ✅ CORRECCIÓN DEFINITIVA: Se usa 'followUpDate', el nombre correcto del atributo.
       followUpDate: followUpDialog.date ? new Date(followUpDialog.date).toISOString() : undefined,
       followUpNotes: followUpDialog.notes
     };
     await updateReferralData(followUpDialog.referral.$id, dataToUpdate);
     showSnackbar({ text: 'Seguimiento guardado.' });
-  } catch (error: any) {
-    console.error("Fallo al guardar seguimiento", error);
-    // Esta alerta nos dirá el error exacto que devuelve Appwrite
-    alert(`ERROR AL GUARDAR EL SEGUIMIENTO:\n\n${error.message}`);
+  } catch (e: any) {
+    showSnackbar({ text: `Error al guardar seguimiento: ${e.message}`, color: 'error'});
   } finally {
     followUpDialog.show = false;
   }
@@ -155,15 +164,22 @@ const filteredReferrals = computed(() => {
   if (selectedStatus.value) { items = items.filter(r => r.status === selectedStatus.value); }
   return items;
 });
-const headers = [ { title: 'Fecha de Carga', key: 'loadDate' }, { title: 'Sponsor', key: 'sponsor' }, { title: 'Referido', key: 'referralName' }, { title: 'Teléfono', key: 'phone' }, { title: 'Ocupación', key: 'occupation' }, { title: 'Estado', key: 'status', width: '200px' }, { title: 'Acciones', key: 'actions', sortable: false, align: 'center' }, ];
+
+const headers = [
+  { title: 'Fecha de Carga', key: 'loadDate' }, { title: 'Sponsor', key: 'sponsor' }, { title: 'Referido', key: 'referralName' },
+  { title: 'Teléfono', key: 'phone' }, { title: 'Ocupación', key: 'occupation' }, { title: 'Estado', key: 'status', width: '200px' },
+  { title: 'Acciones', key: 'actions', sortable: false, align: 'center' },
+];
 const statusOptions = ['Pendiente', 'Demo', 'No Acepta', 'No Contesta'];
+
 const isFormValid = computed(() => sponsor.value.trim() !== '' && newReferralsList.value.every(r => r.referralName.trim() !== ''));
 const addReferralForm = () => { newReferralsList.value.push({ referralName: '', phone: '', occupation: '', peopleCount: undefined }); };
 const removeReferralForm = (index: number) => { newReferralsList.value.splice(index, 1); };
+
 const handleSaveAllReferrals = async () => {
   if (!isFormValid.value) return;
   isSaving.value = true;
-  const sponsorName = sponsor.value;
+  const sponsorName = typeof sponsor.value === 'string' ? sponsor.value : (sponsor.value as any)?.title || '';
   let successfulSaves = 0;
   for (const referral of newReferralsList.value) {
     try {
@@ -181,6 +197,7 @@ const handleSaveAllReferrals = async () => {
   newReferralsList.value = [{ referralName: '', phone: '', occupation: '', peopleCount: undefined }];
   sponsor.value = '';
 };
+
 const getStatusColor = (status: IReferral['status']) => {
   switch (status) {
     case 'Demo': return 'green-lighten-4';
@@ -189,6 +206,7 @@ const getStatusColor = (status: IReferral['status']) => {
     default: return 'blue-lighten-4';
   }
 };
+
 onMounted(() => {
   setTitle('Programa 4/14');
   getReferrals();
