@@ -44,9 +44,15 @@
         class="mt-2"
         no-data-text="No hay registros que coincidan con los filtros."
       >
-        <template v-slot:header.clientName="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedClient ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedClient = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="client in uniqueClients" :key="client" :title="client" @click="selectedClient = client"></v-list-item></v-list></v-menu></template>
-        <template v-slot:header.type="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedType ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedType = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="typeOption in ['VENTA', 'COTIZACIÓN']" :key="typeOption" :title="typeOption" @click="selectedType = typeOption"></v-list-item></v-list></v-menu></template>
-        <template v-slot:header.actions="{ column }"><v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedAction ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedAction = null" title="Todas las Acciones"></v-list-item><v-divider></v-divider><v-list-item v-for="action in actionOptions" :key="action" :title="action" @click="selectedAction = action"></v-list-item></v-list></v-menu></template>
+        <template v-slot:header.clientName="{ column }">
+          <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedClient ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedClient = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="client in uniqueClients" :key="client" :title="client" @click="selectedClient = client"></v-list-item></v-list></v-menu>
+        </template>
+        <template v-slot:header.type="{ column }">
+          <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedType ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedType = null" title="Mostrar Todos"></v-list-item><v-divider></v-divider><v-list-item v-for="typeOption in ['VENTA', 'COTIZACIÓN']" :key="typeOption" :title="typeOption" @click="selectedType = typeOption"></v-list-item></v-list></v-menu>
+        </template>
+        <template v-slot:header.actions="{ column }">
+           <v-menu offset-y><template v-slot:activator="{ props: menuProps }"><v-btn v-bind="menuProps" variant="text" size="small">{{ column.title }}<v-icon end :color="selectedAction ? 'primary' : ''">mdi-filter-variant</v-icon></v-btn></template><v-list dense><v-list-item @click="selectedAction = null" title="Todas las Acciones"></v-list-item><v-divider></v-divider><v-list-item v-for="action in actionOptions" :key="action" :title="action" @click="selectedAction = action"></v-list-item></v-list></v-menu>
+        </template>
         
         <template v-slot:item.quoteDate="{ item }"><span>{{ new Date(item.quoteDate).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric' }) }}</span></template>
         <template v-slot:item.type="{ item }"><v-chip :color="item.type === 'VENTA' ? 'success' : 'info'" size="small" label>{{ item.type }}</v-chip></template>
@@ -57,11 +63,11 @@
         <template v-slot:item.followUpDate="{ item }">
           <v-chip v-if="item.followUpDate" :color="getFollowUpColor(item.followUpDate)" size="small" variant="tonal">
             <v-icon start size="small">mdi-calendar-clock</v-icon>
-            {{ new Date(item.followUpDate).toLocaleDateString('es-AR') }}
+            {{ new Date(item.followUpDate).toLocaleDateString('es-AR', {timeZone: 'UTC'}) }}
           </v-chip>
         </template>
         <template v-slot:item.actions="{ item }">
-          <div class="d-flex align-center justify-center ga-1">
+          <div class="d-flex align-center justify-end ga-1">
             <v-btn icon="mdi-pencil" size="small" variant="text" @click="openEditDialog(item)" title="Editar Cliente"></v-btn>
             <v-btn v-if="item.type === 'COTIZACIÓN'" icon="mdi-calendar-clock" size="small" variant="text" @click="openFollowUpDialog(item)" title="Agendar Seguimiento" :color="item.followUpDate ? 'primary' : 'default'"></v-btn>
             <v-btn v-if="item.type === 'COTIZACIÓN'" icon="mdi-swap-horizontal-bold" color="success" size="small" variant="text" @click="handleConversion(item)" :loading="isConverting && selectedRecordId === item.$id" :disabled="isConverting" title="Convertir a Venta"></v-btn>
@@ -95,11 +101,7 @@
         </v-container>
         <small>*indica campo requerido</small>
       </v-card-text>
-      <v-card-actions>
-        <v-spacer></v-spacer>
-        <v-btn text @click="followUpDialog.show = false">Cancelar</v-btn>
-        <v-btn color="primary" variant="flat" @click="saveFollowUp" :disabled="!followUpDialog.date">Guardar Seguimiento</v-btn>
-      </v-card-actions>
+      <v-card-actions><v-spacer></v-spacer><v-btn text @click="followUpDialog.show = false">Cancelar</v-btn><v-btn color="primary" variant="flat" @click="saveFollowUp" :disabled="!followUpDialog.date">Guardar Seguimiento</v-btn></v-card-actions>
     </v-card>
   </v-dialog>
 </template>
@@ -125,10 +127,7 @@ const recordToEdit = ref<ISavedRecord | null>(null);
 const deleteDialog = reactive({ show: false, record: null as ISavedRecord | null });
 const dateMenu = ref(false);
 const followUpDialog = reactive<{
-  show: boolean;
-  record: ISavedRecord | null;
-  date: Date | null;
-  notes: string;
+  show: boolean; record: ISavedRecord | null; date: Date | null; notes: string;
 }>({ show: false, record: null, date: null, notes: '' });
 
 const selectedClient = ref<string | null>(null);
@@ -147,12 +146,16 @@ const filteredRecords = computed(() => {
   return items;
 });
 
+// ✅ LISTA DE CABECERAS COMPLETA Y CORREGIDA
 const headers = [
   { title: 'Fecha', key: 'quoteDate', sortable: true },
   { title: 'Cliente', key: 'clientName', sortable: true },
   { title: 'Tipo', key: 'type', sortable: true },
   { title: 'Próximo Seguimiento', key: 'followUpDate', sortable: true },
   { title: 'Total', key: 'totalAmount', sortable: true, align: 'end' },
+  { title: 'Depósito', key: 'depositAmount', sortable: false, align: 'end' },
+  { title: 'Cuotas', key: 'installmentsInfo', sortable: false },
+  { title: 'Productos', key: 'products', sortable: false, width: '200px' },
   { title: 'Acciones', key: 'actions', sortable: false, align: 'end' },
 ];
 
@@ -194,11 +197,9 @@ const openFollowUpDialog = (record: ISavedRecord) => {
   followUpDialog.notes = record.followUpNotes || '';
   followUpDialog.show = true;
 };
-
 const formattedFollowUpDate = computed(() => {
   return followUpDialog.date ? followUpDialog.date.toLocaleDateString('es-AR', {timeZone: 'UTC'}) : '';
 });
-
 const saveFollowUp = async () => {
   if (!followUpDialog.record || !followUpDialog.date) return;
   try {
@@ -212,7 +213,7 @@ const saveFollowUp = async () => {
   finally { followUpDialog.show = false; }
 };
 
-const getFollowUpColor = (dateString: string) => {
+const getFollowUpColor = (dateString?: string) => {
   if (!dateString) return undefined;
   const today = new Date(); today.setUTCHours(0, 0, 0, 0);
   const followUpDate = new Date(dateString); followUpDate.setUTCHours(0, 0, 0, 0);
