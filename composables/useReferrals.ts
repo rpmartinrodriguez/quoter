@@ -1,7 +1,7 @@
 import { ref, watch } from 'vue';
-import { ID, Query, Permission, Role } from 'appwrite';
+import { ID, Query } from 'appwrite';
 
-// ✅ Se actualiza la interfaz para usar los nuevos nombres de atributos
+// ✅ Se añade el campo para saber si el seguimiento fue completado
 export interface IReferral {
   $id: string;
   sponsor: string;
@@ -11,8 +11,9 @@ export interface IReferral {
   peopleCount?: number;
   status: 'Pendiente' | 'Demo' | 'No Acepta' | 'No Contesta';
   loadDate: string;
-  nextFollowUp?: string;   // <-- Nombre corregido
-  notesFollowUp?: string; // <-- Nombre corregido
+  nextFollowUp?: string;
+  notesFollowUp?: string;
+  followUpCompleted?: boolean; // <-- NUEVO
 }
 
 const referrals = ref<IReferral[]>([]);
@@ -39,10 +40,12 @@ export const useReferrals = () => {
 
   const addReferral = async (data: Omit<IReferral, '$id' | 'loadDate' | 'status'>) => {
     try {
+      // Al crear, nos aseguramos que 'completado' sea falso por defecto
       const doc = {
         ...data,
         status: 'Pendiente',
         loadDate: new Date().toISOString(),
+        followUpCompleted: false,
       };
       await databases.createDocument(config.public.database, COLLECTION_ID, ID.unique(), doc);
     } catch (error) {
@@ -79,6 +82,24 @@ export const useReferrals = () => {
     }
   };
 
+  // ✅ --- INICIO: NUEVA FUNCIÓN PARA MARCAR SEGUIMIENTO COMO HECHO ---
+  const markFollowUpAsDone = async (id: string) => {
+    try {
+      await databases.updateDocument(
+        config.public.database,
+        COLLECTION_ID,
+        id,
+        { followUpCompleted: true }
+      );
+      // Refrescamos la lista para que el cambio se refleje en toda la app
+      await getReferrals();
+    } catch (error) {
+      console.error(`❌ Error al completar el seguimiento del referido ${id}:`, error);
+      throw error;
+    }
+  };
+  // ✅ --- FIN: NUEVA FUNCIÓN ---
+
   if (referrals.value.length === 0 && !isLoading.value) {
     getReferrals();
   }
@@ -90,5 +111,6 @@ export const useReferrals = () => {
     addReferral, 
     updateReferralStatus,
     updateReferralData,
+    markFollowUpAsDone, // ✅ Se exporta la nueva función
   };
 };
