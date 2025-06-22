@@ -8,31 +8,18 @@
           </v-toolbar>
           <v-card-text class="pt-4">
             <v-form @submit.prevent="handleLogin">
-              <v-text-field
-                v-model="email"
-                label="Email"
-                name="login"
-                prepend-inner-icon="mdi-account"
-                type="text"
-                variant="outlined"
-                density="compact"
-                class="mb-2"
-              ></v-text-field>
-
+              <v-text-field v-model="email" label="Email" prepend-inner-icon="mdi-account" type="text" variant="outlined" density="compact" class="mb-2"></v-text-field>
               <v-text-field
                 v-model="password"
                 label="Contraseña"
-                name="password"
                 prepend-inner-icon="mdi-lock"
-                variant="outlined"
-                density="compact"
                 :type="showPassword ? 'text' : 'password'"
                 :append-inner-icon="showPassword ? 'mdi-eye-off' : 'mdi-eye'"
                 @click:append-inner="showPassword = !showPassword"
+                variant="outlined"
+                density="compact"
               ></v-text-field>
-              <v-alert v-if="errorMsg" type="error" density="compact" class="mt-4">
-                {{ errorMsg }}
-              </v-alert>
+              <v-alert v-if="errorMsg" type="error" density="compact" class="mt-4">{{ errorMsg }}</v-alert>
             </v-form>
           </v-card-text>
           <v-card-actions class="px-4 pb-4">
@@ -46,20 +33,13 @@
 </template>
 
 <script lang="ts" setup>
-// Le decimos a Nuxt que esta página use el layout "empty".
-definePageMeta({
-  layout: 'empty',
-});
-
+definePageMeta({ layout: 'empty' });
 const { login } = useAuth();
 const router = useRouter();
-
 const email = ref('');
 const password = ref('');
 const errorMsg = ref('');
 const isLoading = ref(false);
-
-// ✅ Se añade una variable para controlar la visibilidad de la contraseña
 const showPassword = ref(false);
 
 const handleLogin = async () => {
@@ -72,7 +52,7 @@ const handleLogin = async () => {
   try {
     await login(email.value, password.value);
     router.push('/');
-  } catch (error: any) {
+  } catch (error) {
     errorMsg.value = 'Email o contraseña incorrectos.';
   } finally {
     isLoading.value = false;
