@@ -3,9 +3,7 @@
     <v-row align="center" justify="center">
       <v-col cols="12" sm="8" md="4">
         <v-card class="elevation-12">
-          <v-toolbar color="primary" dark flat>
-            <v-toolbar-title>Iniciar Sesión</v-toolbar-title>
-          </v-toolbar>
+          <v-toolbar color="primary" dark flat><v-toolbar-title>Iniciar Sesión</v-toolbar-title></v-toolbar>
           <v-card-text class="pt-4">
             <v-form @submit.prevent="handleLogin">
               <v-text-field v-model="email" label="Email" prepend-inner-icon="mdi-account" type="text" variant="outlined" density="compact" class="mb-2"></v-text-field>
@@ -31,7 +29,6 @@
     </v-row>
   </v-container>
 </template>
-
 <script lang="ts" setup>
 definePageMeta({ layout: 'empty' });
 const { login } = useAuth();
@@ -43,19 +40,13 @@ const isLoading = ref(false);
 const showPassword = ref(false);
 
 const handleLogin = async () => {
-  if (!email.value || !password.value) {
-    errorMsg.value = 'Por favor, completá ambos campos.';
-    return;
-  }
+  if (!email.value || !password.value) { errorMsg.value = 'Por favor, completá ambos campos.'; return; }
   isLoading.value = true;
   errorMsg.value = '';
   try {
     await login(email.value, password.value);
     router.push('/');
-  } catch (error) {
-    errorMsg.value = 'Email o contraseña incorrectos.';
-  } finally {
-    isLoading.value = false;
-  }
+  } catch (error) { errorMsg.value = 'Email o contraseña incorrectos.'; }
+  finally { isLoading.value = false; }
 };
 </script>
