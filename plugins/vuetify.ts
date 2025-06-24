@@ -8,7 +8,7 @@ import { aliases, mdi } from "vuetify/iconsets/mdi";
 const miTemaClaro = {
   dark: false,
   colors: {
-    background: '#F2F5F8', // Un gris muy claro y suave para el fondo
+    background: '#E0E0E0', // ✅ Color de fondo actualizado a un gris más presente
     surface: '#FFFFFF',    // Blanco puro para las tarjetas y superficies
     primary: '#1976D2',    // Un azul clásico y fuerte como color principal
     secondary: '#546E7A',  // Un gris azulado para elementos secundarios
@@ -48,6 +48,7 @@ export default defineNuxtPlugin((nuxtApp) => {
     // Estilos por defecto para toda la aplicación
     defaults: {
       VBtn: {
+        color: 'primary',
         variant: 'flat',
         elevation: 2,
         rounded: 'lg',
