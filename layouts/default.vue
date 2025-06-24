@@ -18,23 +18,15 @@
           </v-chip>
         </template>
         <v-card>
-          <v-card-title>
-            <span class="text-h5">Análisis de Rendimiento Global</span>
-          </v-card-title>
-          <v-card-subtitle>
-            Puntaje General Ponderado: {{ performance.globalPerformanceScore.value }}%
-          </v-card-subtitle>
+          <v-card-title><span class="text-h5">Análisis de Rendimiento Global</span></v-card-title>
+          <v-card-subtitle>Puntaje General Ponderado: {{ performance.globalPerformanceScore.value }}%</v-card-subtitle>
           <v-card-text>
-            <p class="text-caption mb-4">
-              Este puntaje se calcula en base a tu eficiencia en áreas clave de venta.
-            </p>
+            <p class="text-caption mb-4">Este puntaje se calcula en base a tu eficiencia en áreas clave de venta.</p>
             <v-list lines="two" density="compact">
               <v-list-item>
                 <v-list-item-title class="d-flex justify-space-between">
                   <span>Tasa de Cierre por Demo</span>
-                  <v-chip :color="performance.getMetricColor(performance.metrics.demoToSaleRate.value)" size="small">
-                    {{ performance.metrics.demoToSaleRate.value }}%
-                  </v-chip>
+                  <v-chip :color="performance.getMetricColor(performance.metrics.demoToSaleRate.value)" size="small">{{ performance.metrics.demoToSaleRate.value }}%</v-chip>
                 </v-list-item-title>
                 <v-list-item-subtitle>De las demos que hacés, cuántas se convierten en venta. (Peso: 50%)</v-list-item-subtitle>
               </v-list-item>
@@ -42,9 +34,7 @@
               <v-list-item>
                 <v-list-item-title class="d-flex justify-space-between">
                   <span>Tasa de Cumplimiento de Tareas</span>
-                   <v-chip :color="performance.getMetricColor(performance.metrics.followUpCompletionRate.value)" size="small">
-                    {{ performance.metrics.followUpCompletionRate.value }}%
-                  </v-chip>
+                   <v-chip :color="performance.getMetricColor(performance.metrics.followUpCompletionRate.value)" size="small">{{ performance.metrics.followUpCompletionRate.value }}%</v-chip>
                 </v-list-item-title>
                 <v-list-item-subtitle>De los seguimientos agendados, cuántos has marcado como completados. (Peso: 25%)</v-list-item-subtitle>
               </v-list-item>
@@ -52,9 +42,7 @@
               <v-list-item>
                 <v-list-item-title class="d-flex justify-space-between">
                   <span>Tasa de Conversión General</span>
-                   <v-chip :color="performance.getMetricColor(performance.metrics.overallConversionRate.value)" size="small">
-                    {{ performance.metrics.overallConversionRate.value }}%
-                  </v-chip>
+                   <v-chip :color="performance.getMetricColor(performance.metrics.overallConversionRate.value)" size="small">{{ performance.metrics.overallConversionRate.value }}%</v-chip>
                 </v-list-item-title>
                 <v-list-item-subtitle>De todos tus registros, cuántos son ventas. (Peso: 25%)</v-list-item-subtitle>
               </v-list-item>
@@ -66,7 +54,8 @@
           </v-card-actions>
         </v-card>
       </v-dialog>
-      <v-btn :icon="theme.global.current.value.dark ? 'mdi-weather-night' : 'mdi-weather-sunny'" @click="toggleTheme"></v-btn>
+      
+      <v-btn :icon="theme.global.current.value.dark ? 'mdi-weather-night' : 'mdi-weather-sunny'" @click="toggleTheme" variant="text"></v-btn>
 
       <v-menu location="bottom end" offset="10" :close-on-content-click="false">
         <template v-slot:activator="{ props }">
@@ -86,7 +75,7 @@
             </template>
           </v-list-item>
           <v-list-item v-if="notificationCount === 0">
-            <v-list-item-title class="text-grey text-caption pa-4 text-center">No tenés notificaciones pendientes. ¡Buen trabajo!</v-list-item-title>
+            <v-list-item-title class="text-grey text-caption pa-4 text-center">No tenés notificaciones pendientes.</v-list-item-title>
           </v-list-item>
         </v-list>
       </v-menu>
@@ -115,8 +104,10 @@
       </template>
     </v-navigation-drawer>
 
-    <v-main class="main-content">
-      <v-container fluid class="pa-4"><slot /></v-container>
+    <v-main class="bg-background">
+      <v-container fluid class="pa-4">
+        <slot />
+      </v-container>
     </v-main>
 
     <v-snackbar v-model="snackbar.show.value" :color="snackbar.color.value" :timeout="3000" location="top right" variant="elevated">
@@ -137,7 +128,6 @@ import { useSnackbar } from '~/composables/useSnackbar';
 import { useAuth } from '~/composables/useAuth';
 import { useNotifications } from '~/composables/useNotifications';
 import { useReferrals } from '~/composables/useReferrals';
-// ✅ Se importa el nuevo motor de rendimiento
 import { usePerformance } from '~/composables/usePerformance';
 
 const drawer = ref(false);
@@ -148,8 +138,6 @@ const snackbar = useSnackbar();
 const { user, logout } = useAuth();
 const { allNotifications, notificationCount } = useNotifications();
 const { markFollowUpAsDone } = useReferrals();
-
-// ✅ Se obtienen los datos de rendimiento y se controla el diálogo
 const performance = usePerformance();
 const performanceDialog = ref(false);
 
@@ -165,5 +153,5 @@ const handleMarkAsDone = async (notificationId: string) => {
 </script>
 
 <style>
-.main-content { min-height: 100vh; }
+/* ✅ Ya no necesitamos la clase .main-content porque el tema de Vuetify maneja el fondo */
 </style>
