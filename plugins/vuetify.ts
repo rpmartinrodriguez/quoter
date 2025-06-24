@@ -4,13 +4,14 @@ import "vuetify/styles";
 import { createVuetify } from "vuetify";
 import { aliases, mdi } from "vuetify/iconsets/mdi";
 
+// Tema Claro Profesional
 const miTemaClaro = {
   dark: false,
   colors: {
-    background: '#F5F7FA',
-    surface: '#FFFFFF',
-    primary: '#1976D2',
-    secondary: '#424242',
+    background: '#F2F5F8', // Un gris muy claro y suave para el fondo
+    surface: '#FFFFFF',    // Blanco puro para las tarjetas y superficies
+    primary: '#1976D2',    // Un azul clásico y fuerte como color principal
+    secondary: '#546E7A',  // Un gris azulado para elementos secundarios
     error: '#B00020',
     info: '#2196F3',
     success: '#4CAF50',
@@ -18,14 +19,14 @@ const miTemaClaro = {
   }
 };
 
-// ✅ Se añade la definición del tema oscuro
+// Tema Oscuro Profesional
 const miTemaOscuro = {
   dark: true,
   colors: {
-    background: '#121212',
-    surface: '#1E1E1E',
-    primary: '#2196F3', // Un azul más brillante para el modo oscuro
-    secondary: '#B0BEC5',
+    background: '#121212', // Negro estándar de Material Design para fondos
+    surface: '#1E1E1E',    // Un gris oscuro para las tarjetas
+    primary: '#BB86FC',    // Un violeta brillante que contrasta bien en modo oscuro
+    secondary: '#03DAC6',  // Un teal como color de acento secundario
     error: '#CF6679',
     info: '#2196F3',
     success: '#66BB6A',
@@ -35,16 +36,55 @@ const miTemaOscuro = {
 
 export default defineNuxtPlugin((nuxtApp) => {
   const vuetify = createVuetify({
-    icons: { /* ... (sin cambios) ... */ },
-    // ✅ Se añaden ambos temas a la configuración
-    theme: {
-      defaultTheme: 'miTemaClaro', // Empezamos con el tema claro
-      themes: {
-        miTemaClaro,
-        miTemaOscuro, // Registramos el tema oscuro
+    ssr: false,
+    // Configuración completa de íconos
+    icons: {
+      defaultSet: 'mdi',
+      aliases,
+      sets: {
+        mdi,
       },
     },
-    defaults: { /* ... (sin cambios) ... */ }
+    // Estilos por defecto para toda la aplicación
+    defaults: {
+      VBtn: {
+        variant: 'flat',
+        elevation: 2,
+        rounded: 'lg',
+      },
+      VCard: {
+        rounded: 'lg',
+        elevation: 1,
+      },
+      VTextField: {
+        variant: 'outlined',
+        density: 'compact',
+        rounded: 'lg',
+      },
+       VSelect: {
+        variant: 'outlined',
+        density: 'compact',
+        rounded: 'lg',
+      },
+       VAutocomplete: {
+        variant: 'outlined',
+        density: 'compact',
+        rounded: 'lg',
+      },
+      VTextarea: {
+        variant: 'outlined',
+        density: 'compact',
+        rounded: 'lg',
+      }
+    },
+    // Configuración de temas
+    theme: {
+      defaultTheme: 'miTemaClaro',
+      themes: {
+        miTemaClaro,
+        miTemaOscuro,
+      },
+    },
   });
 
   nuxtApp.vueApp.use(vuetify);
