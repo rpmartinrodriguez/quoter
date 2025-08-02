@@ -98,17 +98,17 @@
         <v-list-item prepend-icon="mdi-cog" title="Configuración" to="/settings"></v-list-item>
       </v-list>
 
-      <!-- ✅ INICIO: NUEVA SECCIÓN CON EL WIDGET DEL DÓLAR -->
+      <!-- ✅ INICIO: SECCIÓN DEL WIDGET DEL DÓLAR ACTUALIZADA -->
       <v-divider class="my-2"></v-divider>
       <v-list-subheader>COTIZACIÓN DÓLAR</v-list-subheader>
       <div class="pa-2">
         <iframe 
           style="width: 100%; height: 260px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.12);" 
-          src="https://dolarhoy.com/i/cotizaciones/dolar-contado-con-liquidacion" 
+          src="https://dolarhoy.com/i/cotizaciones/dolar-blue" 
           frameborder="0"
         ></iframe>
       </div>
-      <!-- ✅ FIN: NUEVA SECCIÓN -->
+      <!-- ✅ FIN: SECCIÓN DEL WIDGET DEL DÓLAR -->
 
       <template v-slot:append>
         <div class="pa-2" v-if="user">
