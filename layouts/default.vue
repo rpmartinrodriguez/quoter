@@ -97,6 +97,19 @@
         <v-list-item prepend-icon="mdi-format-list-checks" title="Cotizaciones" to="/cotizaciones"></v-list-item>
         <v-list-item prepend-icon="mdi-cog" title="Configuración" to="/settings"></v-list-item>
       </v-list>
+
+      <!-- ✅ INICIO: NUEVA SECCIÓN CON EL WIDGET DEL DÓLAR -->
+      <v-divider class="my-2"></v-divider>
+      <v-list-subheader>COTIZACIÓN DÓLAR</v-list-subheader>
+      <div class="pa-2">
+        <iframe 
+          style="width: 100%; height: 260px; border-radius: 8px; border: 1px solid rgba(0,0,0,0.12);" 
+          src="https://dolarhoy.com/i/cotizaciones/dolar-contado-con-liquidacion" 
+          frameborder="0"
+        ></iframe>
+      </div>
+      <!-- ✅ FIN: NUEVA SECCIÓN -->
+
       <template v-slot:append>
         <div class="pa-2" v-if="user">
           <v-btn block color="red" variant="tonal" @click="logout">Cerrar Sesión</v-btn>
@@ -153,5 +166,7 @@ const handleMarkAsDone = async (notificationId: string) => {
 </script>
 
 <style>
-/* ✅ Ya no necesitamos la clase .main-content porque el tema de Vuetify maneja el fondo */
+.main-content {
+  min-height: 100vh;
+}
 </style>
