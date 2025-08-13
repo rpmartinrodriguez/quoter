@@ -1,13 +1,8 @@
+// composables/useProducts.ts
 import { ref } from "vue";
 import { ID, Query } from "appwrite";
 import readXlsxFile from "read-excel-file";
 
-// --- ESTADO SINGLETON ---
-const products = ref<Product[]>([]);
-const selected = ref<Product[]>([]);
-const isLoading = ref<boolean>(false);
-
-// --- INTERFAZ ---
 // Se define la estructura clara de un producto
 interface Product {
   $id: string;
@@ -15,6 +10,10 @@ interface Product {
   composition: string;
   price: number;
 }
+
+const products = ref<Product[]>([]);
+const selected = ref<Product[]>([]);
+const isLoading = ref<boolean>(false);
 
 export const useProducts = () => {
   const config = useRuntimeConfig();
@@ -44,27 +43,22 @@ export const useProducts = () => {
 
   /**
    * Borra todos los productos existentes y los reemplaza con los de un archivo Excel.
-   * @param file - El archivo .xlsx seleccionado por el usuario.
    */
   const updateProducts = async (file: File) => {
     isLoading.value = true;
     try {
-      // 1. Obtenemos todos los IDs de los productos actuales para borrarlos.
       const currentProducts = await databases.listDocuments(config.public.database, COLLECTION_ID, [Query.limit(5000)]);
       for (const product of currentProducts.documents) {
         await databases.deleteDocument(config.public.database, COLLECTION_ID, product.$id);
       }
       
-      // 2. Leemos las filas del nuevo archivo de Excel.
       const rows = await readXlsxFile(file);
-      // Omitimos la primera fila (cabecera) con .slice(1)
       for (const row of rows.slice(1)) {
         const productData = {
           detail: row[0],
           composition: row[1],
           price: row[2],
         };
-        // 3. Creamos un nuevo documento por cada fila del Excel.
         await databases.createDocument(
           config.public.database,
           COLLECTION_ID,
@@ -72,23 +66,20 @@ export const useProducts = () => {
           productData
         );
       }
-      // 4. Refrescamos la lista en la aplicación con los nuevos productos.
       await getProducts();
     } catch (e) {
       console.error("❌ Error al actualizar productos desde Excel", e);
-      throw e; // Lanzamos el error para que el componente que llama lo pueda manejar
+      throw e;
     } finally {
       isLoading.value = false;
     }
   };
 
 
-  // Carga inicial de datos si la lista está vacía.
   if (products.value.length === 0 && !isLoading.value) {
     getProducts();
   }
 
-  // Se exponen el estado y las funciones.
   return {
     list: products,
     selected,
