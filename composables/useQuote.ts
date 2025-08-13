@@ -1,7 +1,7 @@
 import { ref } from 'vue';
 import { ID, Query } from 'appwrite';
 
-// ✅ La interfaz vuelve a ser simple, sin userId.
+// La interfaz es simple, sin userId.
 interface Quote {
   $id: string;
   quantity: number;
@@ -15,16 +15,16 @@ const isLoading = ref<boolean>(false);
 export const useQuote = () => {
   const config = useRuntimeConfig();
   const { databases } = useAppwrite();
-  // ✅ Ya no necesita a useAuth().
+  const COLLECTION_ID = config.public.cQuotes;
 
   const getQuotes = async () => {
     if (isLoading.value) return;
     isLoading.value = true;
     try {
-      // ✅ La consulta ya no filtra por usuario, trae todos los documentos.
+      // La consulta no filtra por usuario, trae todos los documentos.
       const res = await databases.listDocuments(
         config.public.database,
-        config.public.cQuotes,
+        COLLECTION_ID,
         [Query.orderAsc("quantity")]
       );
       quotes.value = res.documents as unknown as Quote[];
@@ -38,7 +38,7 @@ export const useQuote = () => {
 
   const createQuote = async (quantity: number, percentage: number) => {
     try {
-      // ✅ Al crear, ya no añade userId ni permisos de usuario. Es un dato público.
+      // Al crear, no añade userId ni permisos de usuario.
       await databases.createDocument(
         config.public.database,
         COLLECTION_ID,
@@ -54,7 +54,12 @@ export const useQuote = () => {
 
   const updateQuote = async (id: string, quantity: number, percentage: number) => {
     try {
-      await databases.updateDocument(config.public.database, COLLECTION_ID, id, { quantity, percentage });
+      await databases.updateDocument(
+        config.public.database,
+        COLLECTION_ID,
+        id,
+        { quantity, percentage }
+      );
       await getQuotes();
     } catch (error) { 
       console.error("❌ Error al actualizar cuota:", error);
@@ -64,7 +69,11 @@ export const useQuote = () => {
 
   const deleteQuote = async (id: string) => {
     try {
-      await databases.deleteDocument(config.public.database, COLLECTION_ID, id);
+      await databases.deleteDocument(
+        config.public.database,
+        COLLECTION_ID,
+        id
+      );
       await getQuotes();
     } catch (error) { 
       console.error("❌ Error al eliminar cuota:", error);
@@ -72,7 +81,7 @@ export const useQuote = () => {
     }
   };
 
-  // ✅ Volvemos al inicializador simple, ya que no depende del estado del usuario.
+  // Se vuelve al inicializador simple.
   if (quotes.value.length === 0 && !isLoading.value) {
     getQuotes();
   }
