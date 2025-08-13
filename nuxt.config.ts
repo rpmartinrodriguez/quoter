@@ -40,6 +40,7 @@ export default defineNuxtConfig({
       cActionPasswords: process.env.C_ACTION_PASSWORDS,
       cRecords: process.env.C_RECORDS,
       cReferrals: process.env.C_REFERRALS,
+      cGoals: process.env.C_GOALS,
 
       // ✅ AÑADIMOS LA NUEVA VARIABLE PARA LA COLECCIÓN DE CLIENTES
       cClients: process.env.C_CLIENTS,
