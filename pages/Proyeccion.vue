@@ -60,7 +60,7 @@
         <v-row>
           <v-col cols="12" md="6">
             <v-card class="pa-4" variant="outlined" height="100%">
-              <label class="text-overline">1. Objetivo de Crecimiento en Ventas</label>
+              <label class="text-overline">1. Simular Crecimiento (si no hay objetivo)</label>
               <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2" :disabled="!!salesGoalFromOKR">
                 <template v-slot:append>
                   <v-text-field v-model="growthPercentage" type="number" style="width: 80px" density="compact" hide-details variant="outlined" :disabled="!!salesGoalFromOKR"></v-text-field>
@@ -124,6 +124,30 @@
             </div>
           </v-col>
         </v-row>
+        <v-row class="mt-8">
+          <v-col>
+            <v-card flat variant="outlined">
+              <v-card-title>Proyección de Foco de Productos</v-card-title>
+              <v-card-subtitle>{{ projectedProductFocus.subtitle }}</v-card-subtitle>
+              <v-card-text>
+                <v-list lines="two">
+                  <v-list-item v-for="product in projectedProductFocus.products" :key="product.name" :title="product.name">
+                    <template v-slot:prepend>
+                      <v-avatar color="primary"><span class="text-white font-weight-bold" title="Unidades adicionales a vender">+{{ product.projectedAdditionalUnits }}</span></v-avatar>
+                    </template>
+                    <v-list-item-subtitle>
+                      Objetivo: Vender **{{ product.projectedAdditionalUnits }} unidades más** para generar <span class="font-weight-bold">{{ formatAsArs(product.projectedAdditionalAmount) }}</span> adicionales.
+                      <div class="text-caption mt-1">(Actualmente representa el {{ product.contributionPercentage }}% de tu facturación)</div>
+                    </v-list-item-subtitle>
+                  </v-list-item>
+                  <v-list-item v-if="projectedProductFocus.products.length === 0">
+                    <v-list-item-title>No hay ventas registradas en el período base para generar una proyección.</v-list-item-title>
+                  </v-list-item>
+                </v-list>
+              </v-card-text>
+            </v-card>
+          </v-col>
+        </v-row>
       </v-card-text>
     </v-card>
 
@@ -157,7 +181,7 @@
 import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSavedQuotes } from '~/composables/useSavedQuotes';
-import { useReferrals, type IReferral } from '~/composables/useReferrals';
+import { useReferrals } from '~/composables/useReferrals';
 import { useFormatters } from '~/composables/useFormatters';
 import { useGoals, type IGoal, type IKeyResult } from '~/composables/useGoals';
 import { useSnackbar } from '~/composables/useSnackbar';
@@ -166,7 +190,7 @@ import { useProducts } from '~/composables/useProducts';
 // --- COMPOSABLES ---
 const { getRecords, savedRecords, isLoading: isLoadingSales } = useSavedQuotes();
 const { getReferrals, referrals, isLoading: isLoadingReferrals } = useReferrals();
-const { goals, isLoading: isLoadingGoals, addGoal, getGoals } = useGoals();
+const { goals, isLoading: isLoadingGoals, addGoal, getGoals, updateGoal } = useGoals();
 const { list: productList, getProducts, isLoading: isLoadingProducts } = useProducts();
 const { formatAsArs } = useFormatters();
 const { setTitle } = usePageTitle();
@@ -176,6 +200,7 @@ const { showSnackbar } = useSnackbar();
 const growthPercentage = ref(10);
 const targetConversionRate = ref(0);
 const dialog = reactive({ show: false, data: { keyResults: [] } as Partial<IGoal> & { keyResults: IKeyResult[] } });
+const isEditingGoal = computed(() => !!dialog.data.$id);
 const metricOptions = [
   { title: 'N° de Ventas', value: 'salesCount' },
   { title: 'N° de Demos', value: 'demoCount' },
@@ -186,8 +211,6 @@ const metricOptions = [
 const now = new Date();
 const currentMonthName = now.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 const currentMonthStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().substring(0, 7);
-const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-const nextMonthName = nextMonthDate.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
 // --- LÓGICA DE OBJETIVOS (OKRs) ---
 const activeGoal = computed(() => {
@@ -219,8 +242,8 @@ const openGoalDialog = () => {
   };
   dialog.show = true;
 };
-const addKeyResult = () => { dialog.data.keyResults.push({ name: '', metric: 'salesCount', target: 0 }); };
-const removeKeyResult = (index: number) => { dialog.data.keyResults.splice(index, 1); };
+const addKeyResult = () => { if(dialog.data.keyResults) dialog.data.keyResults.push({ name: '', metric: 'salesCount', target: 0 }); };
+const removeKeyResult = (index: number) => { if(dialog.data.keyResults) dialog.data.keyResults.splice(index, 1); };
 const saveGoal = async () => {
   const now = new Date(); let startDate, endDate;
   if(dialog.data.timeframe === 'Mensual') {
@@ -237,9 +260,13 @@ const saveGoal = async () => {
   dialog.data.startDate = startDate.toISOString();
   dialog.data.endDate = endDate.toISOString();
   try {
-    // Aquí iría la lógica para editar (updateGoal) si ya existe un objetivo
-    await addGoal(dialog.data as Omit<IGoal, '$id' | 'userId'>);
-    showSnackbar({ text: 'Objetivo guardado con éxito.' });
+    if (isEditingGoal.value) {
+      await updateGoal(dialog.data.$id!, dialog.data);
+      showSnackbar({ text: 'Objetivo actualizado con éxito.' });
+    } else {
+      await addGoal(dialog.data as Omit<IGoal, '$id' | 'userId'>);
+      showSnackbar({ text: 'Objetivo guardado con éxito.' });
+    }
   } catch (e) {
     showSnackbar({ text: 'Error al guardar el objetivo.', color: 'error' });
   } finally {
@@ -254,8 +281,9 @@ const currentMonthStats = computed(() => {
   return { salesCount: sales.length, totalSales: sales.reduce((sum, r) => sum + r.totalAmount, 0) };
 });
 const averageTicket = computed(() => {
-  if (currentMonthStats.value.salesCount === 0) return 0;
-  return currentMonthStats.value.totalSales / currentMonthStats.value.salesCount;
+  const allSales = savedRecords.value.filter(r => r.type === 'VENTA');
+  if (allSales.length === 0) return 0;
+  return allSales.reduce((sum, r) => sum + r.totalAmount, 0) / allSales.length;
 });
 const demoToSaleRate = computed(() => {
   const demoReferrals = referrals.value.filter(r => r.status === 'Demo');
@@ -293,7 +321,7 @@ const projection = computed(() => {
 
 onMounted(async () => {
   setTitle('Objetivos y Proyección');
-  await Promise.all([getRecords(), getReferrals(), getGoals()]);
+  await Promise.all([getRecords(), getReferrals(), getGoals(), getProducts()]);
   targetConversionRate.value = demoToSaleRate.value;
 });
 </script>
