@@ -45,13 +45,14 @@
         <p class="mt-4">No has definido un objetivo para el período actual. ¡Establecé uno para empezar a medir tu progreso!</p>
       </v-card-text>
     </v-card>
+
     <v-card flat>
       <v-card-title class="d-flex align-center mb-4">
         <v-icon start>mdi-finance</v-icon>
         Simulador de Proyección y Plan de Acción
       </v-card-title>
       
-      <div v-if="isLoadingSales || isLoadingReferrals" class="text-center pa-8">
+      <div v-if="isLoadingSales || isLoadingReferrals || isLoadingProducts" class="text-center pa-8">
         <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
       </div>
 
@@ -60,12 +61,13 @@
           <v-col cols="12" md="6">
             <v-card class="pa-4" variant="outlined" height="100%">
               <label class="text-overline">1. Objetivo de Crecimiento en Ventas</label>
-              <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2">
+              <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2" :disabled="!!salesGoalFromOKR">
                 <template v-slot:append>
-                  <v-text-field v-model="growthPercentage" type="number" style="width: 80px" density="compact" hide-details variant="outlined"></v-text-field>
+                  <v-text-field v-model="growthPercentage" type="number" style="width: 80px" density="compact" hide-details variant="outlined" :disabled="!!salesGoalFromOKR"></v-text-field>
                   <span class="ml-2">%</span>
                 </template>
               </v-slider>
+              <div v-if="salesGoalFromOKR" class="text-caption text-center text-primary">El objetivo de ventas está siendo controlado por tu OKR activo.</div>
             </v-card>
           </v-col>
           <v-col cols="12" md="6">
@@ -86,39 +88,34 @@
           <v-col cols="12" md="4">
             <div class="text-center">
               <div class="text-h6">Mes Actual ({{ currentMonthName }})</div>
-              <v-card class="mt-4 pa-5 elevation-4">
+              <v-card class="mt-4 pa-5 elevation-2">
                 <div class="text-overline">Ventas Realizadas</div>
                 <div class="text-h4 font-weight-bold text-success">{{ formatAsArs(currentMonthStats.totalSales) }}</div>
                 <div class="text-caption mb-3">en {{ currentMonthStats.salesCount }} operaciones</div>
-                <v-divider></v-divider>
-                <div class="text-overline mt-3">Ticket Promedio</div>
-                <div class="text-h5 font-weight-bold">{{ formatAsArs(averageTicket) }}</div>
               </v-card>
             </div>
           </v-col>
           <v-col cols="12" md="4">
             <div class="text-center">
-              <div class="text-h6">Objetivo Próximo Mes ({{ nextMonthName }})</div>
-              <v-card class="mt-4 pa-5 elevation-4" color="primary">
+              <div class="text-h6">Objetivo Próximo Período</div>
+              <v-card class="mt-4 pa-5 elevation-2" color="primary">
                 <div class="text-overline">Objetivo de Ventas</div>
                 <div class="text-h4 font-weight-bold">{{ formatAsArs(projection.projectedSalesAmount) }}</div>
-                <div class="text-caption mb-3">Crecimiento del {{ growthPercentage }}%</div>
-                <v-divider></v-divider>
-                <div class="text-overline mt-3">Ticket Promedio Estimado</div>
-                <div class="text-h5 font-weight-bold">{{ formatAsArs(averageTicket) }}</div>
+                <div class="text-caption mb-3" v-if="salesGoalFromOKR">Basado en tu OKR</div>
+                <div class="text-caption mb-3" v-else>Crecimiento del {{ growthPercentage }}%</div>
               </v-card>
             </div>
           </v-col>
           <v-col cols="12" md="4">
              <div class="text-center">
               <div class="text-h6">Tu Plan de Acción</div>
-              <v-card class="mt-4 pa-5 elevation-4">
+              <v-card class="mt-4 pa-5 elevation-2">
                 <div class="text-overline">OBJETIVO FINAL</div>
                 <div class="text-h4 font-weight-bold text-success">{{ projection.projectedSalesCount }} VENTAS</div>
                 <div class="text-center my-2"><v-icon color="grey">mdi-chevron-down</v-icon></div>
                 <div class="text-overline">DEMOS A REALIZAR</div>
                 <div class="text-h5 font-weight-bold text-info">{{ projection.projectedDemosNeeded }}</div>
-                <div class="text-caption">(usando tu tasa objetivo del {{ targetConversionRate }}%)</div>
+                <div class="text-caption">(usando tasa del {{ targetConversionRate }}%)</div>
                 <div class="text-center my-2"><v-icon color="grey">mdi-chevron-down</v-icon></div>
                 <div class="text-overline">REFERIDOS A CONTACTAR</div>
                 <div class="text-h5 font-weight-bold text-warning">{{ projection.projectedReferralsToContact }}</div>
@@ -157,7 +154,7 @@
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed, onMounted } from 'vue';
+import { ref, reactive, computed, onMounted, watch } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useSavedQuotes } from '~/composables/useSavedQuotes';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
@@ -178,7 +175,7 @@ const { showSnackbar } = useSnackbar();
 // --- ESTADO LOCAL ---
 const growthPercentage = ref(10);
 const targetConversionRate = ref(0);
-const dialog = reactive({ show: false, data: {} as Partial<IGoal> & { keyResults: IKeyResult[] } });
+const dialog = reactive({ show: false, data: { keyResults: [] } as Partial<IGoal> & { keyResults: IKeyResult[] } });
 const metricOptions = [
   { title: 'N° de Ventas', value: 'salesCount' },
   { title: 'N° de Demos', value: 'demoCount' },
@@ -187,8 +184,8 @@ const metricOptions = [
 
 // --- LÓGICA DE FECHAS ---
 const now = new Date();
-const currentMonthStr = now.toISOString().substring(0, 7);
 const currentMonthName = now.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+const currentMonthStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().substring(0, 7);
 const nextMonthDate = new Date(now.getFullYear(), now.getMonth() + 1, 1);
 const nextMonthName = nextMonthDate.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
 
@@ -197,21 +194,16 @@ const activeGoal = computed(() => {
   const now = new Date();
   return goals.value.find(g => new Date(g.startDate) <= now && new Date(g.endDate) >= now);
 });
-
 const getCurrentValueForKR = (metric: IKeyResult['metric']) => {
   if (!activeGoal.value) return 0;
   const startDate = new Date(activeGoal.value.startDate);
   switch (metric) {
-    case 'salesCount':
-      return savedRecords.value.filter(r => r.type === 'VENTA' && new Date(r.quoteDate) >= startDate).length;
-    case 'demoCount':
-      return referrals.value.filter(r => r.status === 'Demo' && new Date(r.loadDate) >= startDate).length;
-    case 'followUpCompletedCount':
-      return referrals.value.filter(r => r.followUpCompleted === true && r.nextFollowUp && new Date(r.nextFollowUp) >= startDate).length;
+    case 'salesCount': return savedRecords.value.filter(r => r.type === 'VENTA' && new Date(r.quoteDate) >= startDate).length;
+    case 'demoCount': return referrals.value.filter(r => r.status === 'Demo' && new Date(r.loadDate) >= startDate).length;
+    case 'followUpCompletedCount': return referrals.value.filter(r => r.followUpCompleted === true && r.nextFollowUp && new Date(r.nextFollowUp) >= startDate).length;
     default: return 0;
   }
 };
-
 const progress = computed(() => {
   if (!activeGoal.value) return {};
   const progressMap: Record<string, number> = {};
@@ -221,22 +213,16 @@ const progress = computed(() => {
   }
   return progressMap;
 });
-
 const openGoalDialog = () => {
   dialog.data = activeGoal.value ? JSON.parse(JSON.stringify(activeGoal.value)) : {
-    objective: '',
-    timeframe: 'Trimestral',
-    keyResults: [{ name: 'Cerrar Ventas', metric: 'salesCount', target: 10 }]
+    objective: '', timeframe: 'Trimestral', keyResults: [{ name: 'Cerrar Ventas', metric: 'salesCount', target: 10 }]
   };
   dialog.show = true;
 };
-
 const addKeyResult = () => { dialog.data.keyResults.push({ name: '', metric: 'salesCount', target: 0 }); };
 const removeKeyResult = (index: number) => { dialog.data.keyResults.splice(index, 1); };
-
 const saveGoal = async () => {
-  const now = new Date();
-  let startDate, endDate;
+  const now = new Date(); let startDate, endDate;
   if(dialog.data.timeframe === 'Mensual') {
     startDate = new Date(now.getFullYear(), now.getMonth(), 1);
     endDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
@@ -250,7 +236,6 @@ const saveGoal = async () => {
   }
   dialog.data.startDate = startDate.toISOString();
   dialog.data.endDate = endDate.toISOString();
-
   try {
     // Aquí iría la lógica para editar (updateGoal) si ya existe un objetivo
     await addGoal(dialog.data as Omit<IGoal, '$id' | 'userId'>);
@@ -263,22 +248,41 @@ const saveGoal = async () => {
 };
 
 // --- LÓGICA DE ESTADÍSTICAS Y PROYECCIÓN ---
-const currentMonthStats = computed(() => { /* ... */ });
-const averageTicket = computed(() => { /* ... */ });
-const demoToSaleRate = computed(() => { /* ... */ });
-const leadToDemoRate = computed(() => { /* ... */ });
+const currentMonthStats = computed(() => {
+  const recordsOfThisMonth = savedRecords.value.filter(r => r.quoteDate.startsWith(currentMonthStr));
+  const sales = recordsOfThisMonth.filter(r => r.type === 'VENTA');
+  return { salesCount: sales.length, totalSales: sales.reduce((sum, r) => sum + r.totalAmount, 0) };
+});
+const averageTicket = computed(() => {
+  if (currentMonthStats.value.salesCount === 0) return 0;
+  return currentMonthStats.value.totalSales / currentMonthStats.value.salesCount;
+});
+const demoToSaleRate = computed(() => {
+  const demoReferrals = referrals.value.filter(r => r.status === 'Demo');
+  if (demoReferrals.length === 0) return 0;
+  const clientsWhoBought = new Set(savedRecords.value.filter(r => r.type === 'VENTA').map(r => r.clientName.toLowerCase().trim()));
+  const successfulDemos = demoReferrals.filter(r => clientsWhoBought.has(r.referralName.toLowerCase().trim())).length;
+  return Math.round((successfulDemos / demoReferrals.length) * 100);
+});
+const leadToDemoRate = computed(() => {
+  const totalDemos = referrals.value.filter(r => r.status === 'Demo').length;
+  const contactedReferrals = referrals.value.filter(r => r.status !== 'Pendiente').length;
+  if (contactedReferrals === 0) return 0;
+  return Math.round((totalDemos / contactedReferrals) * 100);
+});
+const salesGoalFromOKR = computed(() => activeGoal.value?.keyResults.find(kr => kr.metric === 'salesCount'));
 
 const projection = computed(() => {
-  const salesGoalFromOKR = activeGoal.value?.keyResults.find(kr => kr.metric === 'salesCount');
-  const baseSalesCount = salesGoalFromOKR ? currentMonthStats.value.salesCount : currentMonthStats.value.salesCount * (1 + (growthPercentage.value / 100));
-  const projectedSalesCount = Math.ceil(baseSalesCount);
-
+  let projectedSalesCount: number;
+  if (salesGoalFromOKR.value) {
+    projectedSalesCount = salesGoalFromOKR.value.target;
+  } else {
+    projectedSalesCount = Math.ceil(currentMonthStats.value.salesCount * (1 + (growthPercentage.value / 100)));
+  }
   const demoRate = (targetConversionRate.value > 0 ? targetConversionRate.value : demoToSaleRate.value) / 100;
-  const projectedDemosNeeded = demoRate > 0 ? Math.ceil(projectedSalesCount / demoRate) : projectedSalesCount;
-
+  const projectedDemosNeeded = demoRate > 0 ? Math.ceil(projectedSalesCount / demoRate) : 0;
   const leadRate = leadToDemoRate.value / 100;
   const projectedReferralsToContact = leadRate > 0 ? Math.ceil(projectedDemosNeeded / leadRate) : 0;
-  
   return {
     projectedSalesAmount: projectedSalesCount * averageTicket.value,
     projectedSalesCount,
