@@ -2,6 +2,42 @@
   <div>
     <v-card class="mb-8">
       <v-card-title class="d-flex align-center">
+        <v-icon start>mdi-rocket-launch-outline</v-icon>
+        Tu Plan de Acción
+      </v-card-title>
+      <v-card-text>
+        <div v-if="isLoadingSales || isLoadingReferrals" class="text-center pa-4">
+          <v-progress-circular indeterminate></v-progress-circular>
+        </div>
+        <v-row v-else>
+          <v-col cols="12" md="4">
+            <v-card class="pa-4 text-center fill-height" variant="tonal" color="warning">
+              <div class="text-overline">REFERIDOS A CONTACTAR</div>
+              <p class="text-h3 font-weight-bold">{{ projection.projectedReferralsToContact }}</p>
+              <div class="text-caption">(basado en tu tasa de demo del {{ leadToDemoRate }}%)</div>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-card class="pa-4 text-center fill-height" variant="tonal" color="info">
+              <div class="text-overline">DEMOS A REALIZAR</div>
+              <p class="text-h3 font-weight-bold">{{ projection.projectedDemosNeeded }}</p>
+              <div class="text-caption">(usando tasa del {{ targetConversionRate }}%)</div>
+            </v-card>
+          </v-col>
+          <v-col cols="12" md="4">
+            <v-card class="pa-4 text-center fill-height" variant="tonal" color="success">
+              <div class="text-overline">OBJETIVO FINAL DE VENTAS</div>
+              <p class="text-h3 font-weight-bold">{{ projection.projectedSalesCount }}</p>
+              <div class="text-caption" v-if="salesGoalFromOKR">Basado en tu OKR</div>
+              <div class="text-caption" v-else>Crecimiento del {{ growthPercentage }}%</div>
+            </v-card>
+          </v-col>
+        </v-row>
+      </v-card-text>
+    </v-card>
+    
+    <v-card class="mb-8">
+      <v-card-title class="d-flex align-center">
         <v-icon start>mdi-target-account</v-icon>
         Mis Objetivos (OKRs)
         <v-spacer></v-spacer>
@@ -9,124 +45,48 @@
           {{ activeGoal ? 'Editar Objetivo Actual' : 'Definir Nuevo Objetivo' }}
         </v-btn>
       </v-card-title>
-
-      <div v-if="isLoadingGoals" class="text-center pa-4">
-        <v-progress-circular indeterminate></v-progress-circular>
-      </div>
-      
+      <div v-if="isLoadingGoals" class="text-center pa-4"><v-progress-circular indeterminate></v-progress-circular></div>
       <v-card-text v-else-if="activeGoal">
-        <h3 class="text-h6 font-weight-regular mb-1">
-          <span class="font-weight-bold">Objetivo:</span> {{ activeGoal.objective }}
-        </h3>
-        <p class="text-caption text-grey">
-          Período: {{ new Date(activeGoal.startDate).toLocaleDateString('es-AR') }} - {{ new Date(activeGoal.endDate).toLocaleDateString('es-AR') }}
-        </p>
-        
+        <h3 class="text-h6 font-weight-regular mb-1"><span class="font-weight-bold">Objetivo:</span> {{ activeGoal.objective }}</h3>
+        <p class="text-caption text-grey">Período: {{ new Date(activeGoal.startDate).toLocaleDateString('es-AR') }} - {{ new Date(activeGoal.endDate).toLocaleDateString('es-AR') }}</p>
         <v-list class="mt-4 bg-transparent">
           <v-list-subheader>Resultados Clave</v-list-subheader>
           <v-list-item v-for="(kr, i) in activeGoal.keyResults" :key="i" class="px-0">
             <v-list-item-title class="font-weight-medium">{{ kr.name }}</v-list-item-title>
             <v-list-item-subtitle class="d-flex align-center">
-              <v-progress-linear
-                :model-value="progress[kr.metric]"
-                color="success"
-                height="10"
-                rounded
-                class="flex-grow-1"
-              ></v-progress-linear>
+              <v-progress-linear :model-value="progress[kr.metric]" color="success" height="10" rounded class="flex-grow-1"></v-progress-linear>
               <span class="ml-4 font-weight-bold">{{ getCurrentValueForKR(kr.metric) }} / {{ kr.target }}</span>
             </v-list-item-subtitle>
           </v-list-item>
         </v-list>
       </v-card-text>
-      
       <v-card-text v-else class="text-center text-grey py-8">
         <v-icon size="48">mdi-flag-plus-outline</v-icon>
-        <p class="mt-4">No has definido un objetivo para el período actual. ¡Establecé uno para empezar a medir tu progreso!</p>
+        <p class="mt-4">No has definido un objetivo para el período actual. ¡Establecé uno para empezar!</p>
       </v-card-text>
     </v-card>
 
     <v-card flat>
-      <v-card-title class="d-flex align-center mb-4">
-        <v-icon start>mdi-finance</v-icon>
-        Simulador de Proyección y Plan de Acción
-      </v-card-title>
-      
-      <div v-if="isLoadingSales || isLoadingReferrals || isLoadingProducts" class="text-center pa-8">
-        <v-progress-circular indeterminate color="primary" size="64"></v-progress-circular>
-      </div>
-
-      <v-card-text v-else>
+      <v-card-title>Simulador y Contexto</v-card-title>
+      <v-card-text>
         <v-row>
-          <v-col cols="12" md="6">
-            <v-card class="pa-4" variant="outlined" height="100%">
-              <label class="text-overline">1. Simular Crecimiento en Ventas (si no hay objetivo)</label>
-              <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2" :disabled="!!salesGoalFromOKR">
-                <template v-slot:append>
-                  <v-text-field v-model="growthPercentage" type="number" style="width: 80px" density="compact" hide-details variant="outlined" :disabled="!!salesGoalFromOKR"></v-text-field>
-                  <span class="ml-2">%</span>
-                </template>
-              </v-slider>
-              <div v-if="salesGoalFromOKR" class="text-caption text-center text-primary">El objetivo de ventas está siendo controlado por tu OKR activo.</div>
-            </v-card>
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-card class="pa-4" variant="outlined" height="100%">
-              <label class="text-overline">2. Simular Mejora en Tasa de Cierre</label>
-              <v-slider v-model="targetConversionRate" :step="1" thumb-label color="secondary" class="mt-2" :max="100">
-                <template v-slot:append>
-                  <v-text-field v-model="targetConversionRate" type="number" style="width: 80px" density="compact" hide-details variant="outlined"></v-text-field>
-                  <span class="ml-2">%</span>
-                </template>
-              </v-slider>
-              <div class="text-caption text-center text-grey">Tu tasa de cierre por demo histórica es: {{ demoToSaleRate }}%</div>
-            </v-card>
-          </v-col>
-        </v-row>
-        <v-divider class="my-6"></v-divider>
-        <v-row>
-          <v-col cols="12" md="4">
-            <div class="text-center">
-              <div class="text-h6">Mes Actual ({{ currentMonthName }})</div>
-              <v-card class="mt-4 pa-5 elevation-2">
-                <div class="text-overline">Ventas Realizadas</div>
-                <div class="text-h4 font-weight-bold text-success">{{ formatAsArs(currentMonthStats.totalSales) }}</div>
-                <div class="text-caption mb-3">en {{ currentMonthStats.salesCount }} operaciones</div>
+            <v-col cols="12" md="6">
+              <v-card class="pa-4" variant="outlined" height="100%">
+                <label class="text-overline">Simular Crecimiento (si no hay objetivo)</label>
+                <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2" :disabled="!!salesGoalFromOKR"></v-slider>
               </v-card>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4">
-            <div class="text-center">
-              <div class="text-h6">Objetivo Próximo Período</div>
-              <v-card class="mt-4 pa-5 elevation-2" color="primary">
-                <div class="text-overline">Objetivo de Ventas</div>
-                <div class="text-h4 font-weight-bold">{{ formatAsArs(projection.projectedSalesAmount) }}</div>
-                <div class="text-caption mb-3" v-if="salesGoalFromOKR">Basado en tu OKR</div>
-                <div class="text-caption mb-3" v-else>Crecimiento del {{ growthPercentage }}%</div>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-card class="pa-4" variant="outlined" height="100%">
+                <label class="text-overline">Simular Mejora en Tasa de Cierre</label>
+                <v-slider v-model="targetConversionRate" :step="1" thumb-label color="secondary" class="mt-2" :max="100"></v-slider>
+                <div class="text-caption text-center text-grey">Tu tasa de cierre por demo histórica es: {{ demoToSaleRate }}%</div>
               </v-card>
-            </div>
-          </v-col>
-          <v-col cols="12" md="4">
-             <div class="text-center">
-              <div class="text-h6">Tu Plan de Acción</div>
-              <v-card class="mt-4 pa-5 elevation-2">
-                <div class="text-overline">OBJETIVO FINAL</div>
-                <div class="text-h4 font-weight-bold text-success">{{ projection.projectedSalesCount }} VENTAS</div>
-                <div class="text-center my-2"><v-icon color="grey">mdi-chevron-down</v-icon></div>
-                <div class="text-overline">DEMOS A REALIZAR</div>
-                <div class="text-h5 font-weight-bold text-info">{{ projection.projectedDemosNeeded }}</div>
-                <div class="text-caption">(usando tasa del {{ targetConversionRate }}%)</div>
-                <div class="text-center my-2"><v-icon color="grey">mdi-chevron-down</v-icon></div>
-                <div class="text-overline">REFERIDOS A CONTACTAR</div>
-                <div class="text-h5 font-weight-bold text-warning">{{ projection.projectedReferralsToContact }}</div>
-                <div class="text-caption">(basado en tu tasa de demo del {{ leadToDemoRate }}%)</div>
-              </v-card>
-            </div>
-          </v-col>
+            </v-col>
         </v-row>
       </v-card-text>
     </v-card>
-
+    
     <v-dialog v-model="dialog.show" persistent max-width="700px">
       <v-card>
         <v-card-title>{{ isEditingGoal ? 'Editar' : 'Definir' }} Objetivo</v-card-title>
@@ -161,13 +121,11 @@ import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useFormatters } from '~/composables/useFormatters';
 import { useGoals, type IGoal, type IKeyResult } from '~/composables/useGoals';
 import { useSnackbar } from '~/composables/useSnackbar';
-import { useProducts } from '~/composables/useProducts';
 
 // --- COMPOSABLES ---
 const { getRecords, savedRecords, isLoading: isLoadingSales } = useSavedQuotes();
 const { getReferrals, referrals, isLoading: isLoadingReferrals } = useReferrals();
 const { goals, isLoading: isLoadingGoals, addGoal, getGoals, updateGoal } = useGoals();
-const { list: productList, getProducts, isLoading: isLoadingProducts } = useProducts();
 const { formatAsArs } = useFormatters();
 const { setTitle } = usePageTitle();
 const { showSnackbar } = useSnackbar();
@@ -182,10 +140,8 @@ const metricOptions = [
   { title: 'N° de Demos', value: 'demoCount' },
   { title: 'N° de Seguimientos Completados', value: 'followUpCompletedCount' },
 ];
-
-// --- LÓGICA DE FECHAS ---
 const now = new Date();
-const currentMonthName = now.toLocaleString('es-AR', { month: 'long', year: 'numeric', timeZone: 'America/Argentina/Buenos_Aires' });
+const currentMonthName = now.toLocaleString('es-AR', { month: 'long', year: 'numeric' });
 const currentMonthStr = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().substring(0, 7);
 
 // --- LÓGICA DE OBJETIVOS (OKRs) ---
@@ -236,32 +192,23 @@ const saveGoal = async () => {
   }
   dialog.data.startDate = startDate.toISOString();
   dialog.data.endDate = endDate.toISOString();
-
   try {
     if (isEditingGoal.value) {
       await updateGoal(dialog.data.$id!, dialog.data);
-      showSnackbar({ text: 'Objetivo actualizado con éxito.' });
+      showSnackbar({ text: 'Objetivo actualizado.' });
     } else {
       await addGoal(dialog.data as Omit<IGoal, '$id' | 'userId'>);
-      showSnackbar({ text: 'Objetivo guardado con éxito.' });
+      showSnackbar({ text: 'Objetivo guardado.' });
     }
-  } catch (e) {
-    showSnackbar({ text: 'Error al guardar el objetivo.', color: 'error' });
-  } finally {
-    dialog.show = false;
-  }
+  } catch (e) { showSnackbar({ text: 'Error al guardar.', color: 'error' }); } 
+  finally { dialog.show = false; }
 };
 
 // --- LÓGICA DE ESTADÍSTICAS Y PROYECCIÓN ---
 const currentMonthStats = computed(() => {
   const recordsOfThisMonth = savedRecords.value.filter(r => r.quoteDate.startsWith(currentMonthStr));
   const sales = recordsOfThisMonth.filter(r => r.type === 'VENTA');
-  return { salesCount: sales.length, totalSales: sales.reduce((sum, r) => sum + r.totalAmount, 0), salesRecords: sales };
-});
-const averageTicket = computed(() => {
-  const allSales = savedRecords.value.filter(r => r.type === 'VENTA');
-  if (allSales.length === 0) return 0;
-  return allSales.reduce((sum, r) => sum + r.totalAmount, 0) / allSales.length;
+  return { salesCount: sales.length, totalSales: sales.reduce((sum, r) => sum + r.totalAmount, 0) };
 });
 const demoToSaleRate = computed(() => {
   const demoReferrals = referrals.value.filter(r => r.status === 'Demo');
@@ -285,12 +232,11 @@ const projection = computed(() => {
   } else {
     projectedSalesCount = Math.ceil(currentMonthStats.value.salesCount * (1 + (growthPercentage.value / 100)));
   }
-  const demoRate = (targetConversionRate.value > 0 ? targetConversionRate.value : demoToSaleRate.value) / 100;
-  const projectedDemosNeeded = demoRate > 0 ? Math.ceil(projectedSalesCount / demoRate) : 0;
+  const conversionRateToUse = (targetConversionRate.value > 0 ? targetConversionRate.value : demoToSaleRate.value) / 100;
+  const projectedDemosNeeded = conversionRateToUse > 0 ? Math.ceil(projectedSalesCount / conversionRateToUse) : 0;
   const leadRate = leadToDemoRate.value / 100;
   const projectedReferralsToContact = leadRate > 0 ? Math.ceil(projectedDemosNeeded / leadRate) : 0;
   return {
-    projectedSalesAmount: projectedSalesCount * averageTicket.value,
     projectedSalesCount,
     projectedDemosNeeded,
     projectedReferralsToContact,
@@ -299,7 +245,7 @@ const projection = computed(() => {
 
 onMounted(async () => {
   setTitle('Objetivos y Proyección');
-  await Promise.all([getRecords(), getReferrals(), getGoals(), getProducts()]);
+  await Promise.all([getRecords(), getReferrals(), getGoals()]);
   targetConversionRate.value = demoToSaleRate.value;
 });
 </script>
