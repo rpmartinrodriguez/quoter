@@ -1,19 +1,20 @@
 <template>
-  <v-card variant="outlined">
+  <v-card variant="outlined" class="fill-height">
     <v-card-title>Actualizar Lista de Precios</v-card-title>
-    <v-card-subtitle>Subí un archivo Excel (.xlsx) para reemplazar el catálogo de productos completo.</v-card-subtitle>
+    <v-card-subtitle>Subir archivo .xlsx para reemplazar el catálogo.</v-card-subtitle>
     
     <v-card-text v-if="!isVerified">
       <v-sheet class="pa-4 text-center" rounded="lg">
         <v-icon size="48" color="primary" class="mb-4">mdi-shield-lock</v-icon>
-        <p class="text-body-2 text-medium-emphasis mb-4">
-          Esta acción es sensible. Por favor, ingresá la contraseña de administrador para continuar.
+        <p class="text-caption text-medium-emphasis mb-4">
+          Ingresá la contraseña de administrador para continuar.
         </p>
         <v-text-field
           v-model="passwordInput"
           label="Contraseña"
           type="password"
           variant="outlined"
+          density="compact"
           @keydown.enter="checkPassword"
         ></v-text-field>
         <v-alert v-if="errorMsg" type="error" density="compact" class="mt-2 text-left">{{ errorMsg }}</v-alert>
@@ -35,6 +36,7 @@
         label="Seleccionar archivo Excel"
         accept=".xlsx"
         variant="outlined"
+        density="compact"
         show-size
       ></v-file-input>
       <v-btn
@@ -99,7 +101,7 @@ const handleUpload = async () => {
   try {
     await updateProducts(selectedFile.value[0]);
     showSnackbar({ text: '¡Lista de productos actualizada con éxito!', color: 'success' });
-    selectedFile.value = []; // Limpiamos el input
+    selectedFile.value = [];
   } catch (error) {
     showSnackbar({ text: 'Error al cargar el archivo Excel.', color: 'error' });
   }
