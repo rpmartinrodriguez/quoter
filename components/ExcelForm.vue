@@ -1,173 +1,107 @@
 <template>
-  <v-dialog v-model="props.show" persistent max-width="500">
-    <v-card>
-      <v-toolbar>
-        <v-btn icon="mdi-close" @click="closeExcelDialog" />
-        <v-toolbar-title>Importar Excel</v-toolbar-title>
-      </v-toolbar>
-      <v-card-text>
-        <div class="py-3">
-          <!-- Formulario de contraseña -->
-          <form v-if="form.password">
-            <v-text-field
-              label="Ingrese contraseña de administrador"
-              variant="outlined"
-              density="compact"
-              autocomplete="current-password"
-              v-model="password"
-              :type="type"
-              :append-inner-icon="icon"
-              :disabled="loadings.password"
-              @click:append-inner="handleIconClick"
-            />
-            <v-btn
-              variant="tonal"
-              color="info"
-              class="w-100"
-              :disabled="password.length < 4 || loadings.password"
-              @click="handleSubmit"
-            >
-              VERIFICAR
-            </v-btn>
-          </form>
+  <v-card variant="outlined">
+    <v-card-title>Actualizar Lista de Precios</v-card-title>
+    <v-card-subtitle>Subí un archivo Excel (.xlsx) para reemplazar el catálogo de productos completo.</v-card-subtitle>
+    
+    <v-card-text v-if="!isVerified">
+      <v-sheet class="pa-4 text-center" rounded="lg">
+        <v-icon size="48" color="primary" class="mb-4">mdi-shield-lock</v-icon>
+        <p class="text-body-2 text-medium-emphasis mb-4">
+          Esta acción es sensible. Por favor, ingresá la contraseña de administrador para continuar.
+        </p>
+        <v-text-field
+          v-model="passwordInput"
+          label="Contraseña"
+          type="password"
+          variant="outlined"
+          @keydown.enter="checkPassword"
+        ></v-text-field>
+        <v-alert v-if="errorMsg" type="error" density="compact" class="mt-2 text-left">{{ errorMsg }}</v-alert>
+        <v-btn
+          @click="checkPassword"
+          :loading="isLoadingPassword"
+          color="primary"
+          block
+          class="mt-4"
+        >
+          Verificar
+        </v-btn>
+      </v-sheet>
+    </v-card-text>
 
-          <!-- Formulario de carga de Excel -->
-          <form v-else>
-            <v-file-input
-              clearable
-              label="Escoger Excel"
-              variant="outlined"
-              density="compact"
-              @change="handleFileChange"
-              @click:clear="files = null"
-            />
-            <v-btn
-              variant="tonal"
-              color="info"
-              class="w-100"
-              :disabled="noFile || loadings.excel || success"
-              @click="saveXls"
-            >
-              CARGAR
-            </v-btn>
-          </form>
-        </div>
-
-        <!-- Mensajes -->
-        <div class="py-5" v-if="errorMessage">
-          <v-alert type="warning" variant="outlined" class="text-center">
-            {{ errorMessage }}
-          </v-alert>
-        </div>
-        <div class="py-5" v-if="success">
-          <v-alert type="success" variant="outlined" class="text-center">
-            Excel cargado exitosamente!
-          </v-alert>
-        </div>
-      </v-card-text>
-    </v-card>
-  </v-dialog>
+    <v-card-text v-else>
+      <v-file-input
+        v-model="selectedFile"
+        label="Seleccionar archivo Excel"
+        accept=".xlsx"
+        variant="outlined"
+        show-size
+      ></v-file-input>
+      <v-btn
+        @click="handleUpload"
+        :loading="isLoadingUpload"
+        :disabled="!selectedFile"
+        color="success"
+        block
+        class="mt-4"
+      >
+        Cargar Nueva Lista
+      </v-btn>
+    </v-card-text>
+  </v-card>
 </template>
 
 <script lang="ts" setup>
-interface Sources {
-  password: boolean;
-  excel: boolean;
-}
+import { ref } from 'vue';
+import { useProducts } from '~/composables/useProducts';
+import { useSnackbar } from '~/composables/useSnackbar';
 
-const props = defineProps<{ show: boolean }>();
-const emits = defineEmits(["finish", "reload"]);
+const { updateProducts, isLoading: isLoadingUpload } = useProducts();
+const { showSnackbar } = useSnackbar();
 
-const loadings = reactive<Sources>({ password: false, excel: false });
-const form = reactive<Sources>({ password: true, excel: false });
+const isVerified = ref(false);
+const passwordInput = ref('');
+const isLoadingPassword = ref(false);
+const errorMsg = ref('');
+const selectedFile = ref<File[]>([]);
 
-const errorMessage = ref("");
-const password = ref("");
-const type = ref<"password" | "text">("password");
-const icon = computed(() => (type.value === "password" ? "mdi-eye-off" : "mdi-eye"));
-const handleIconClick = () => (type.value = type.value === "password" ? "text" : "password");
-
-const files = ref<FileList | null>(null);
-const noFile = computed(() => !files.value);
-const success = ref(false);
-
-const { checkPassword } = useActionPasswords();
-const { getProducts } = useProducts();
-
-// ✅ Validación de contraseña
-const handleSubmit = async () => {
-  loadings.password = true;
-  errorMessage.value = "";
-
-  const res = await checkPassword("uploads", password.value);
-  loadings.password = false;
-
-  if (res === 404) {
-    errorMessage.value = "Contraseña incorrecta";
-  } else {
-    form.password = false;
+const checkPassword = async () => {
+  if (!passwordInput.value) {
+    errorMsg.value = 'Por favor, ingresá una contraseña.';
+    return;
   }
-};
-
-// ✅ Manejo del input de archivo
-const handleFileChange = (e: Event) => {
-  files.value = (e.target as HTMLInputElement).files;
-};
-
-// ✅ Subida del Excel y cierre del diálogo
-const saveXls = async () => {
-  if (!files.value || files.value.length === 0) return;
-
-  loadings.excel = true;
-  errorMessage.value = "";
-
-  const fd = new FormData();
-  Array.from(files.value).forEach((file) => fd.append("file", file));
-
+  isLoadingPassword.value = true;
+  errorMsg.value = '';
   try {
-    const res = await $fetch("/api/update-products", {
-      method: "POST",
-      body: fd,
+    const { verified } = await $fetch('/api/auth/verify-password', {
+      method: 'POST',
+      body: {
+        password: passwordInput.value,
+        type: 'uploads' // ✅ Se envía el tipo de acción
+      }
     });
 
-    if (res?.success) {
-      success.value = true;
-      await getProducts(); // 🔄 actualiza productos
-
-      setTimeout(() => {
-        emits("reload");
-        emits("finish");
-        resetForm();
-      }, 1500);
+    if (verified) {
+      isVerified.value = true;
+      showSnackbar({ text: 'Verificación exitosa.' });
     } else {
-      errorMessage.value = "⚠️ El servidor respondió sin éxito.";
+      errorMsg.value = 'Contraseña incorrecta.';
     }
-  } catch (error: any) {
-    console.error("🛑 Error real del backend:", error);
-    errorMessage.value = `❌ Error inesperado: ${error?.statusMessage || error?.message || 'Sin mensaje'}`;
+  } catch (err) {
+    errorMsg.value = 'Ocurrió un error al verificar.';
   } finally {
-    loadings.excel = false;
-    files.value = null;
+    isLoadingPassword.value = false;
   }
 };
 
-// ✅ Cierre manual del modal
-const closeExcelDialog = () => {
-  if (loadings.password || loadings.excel) return;
-  emits("finish");
-  resetForm();
-};
-
-// ✅ Limpieza completa
-const resetForm = () => {
-  loadings.password = false;
-  loadings.excel = false;
-  form.password = true;
-  form.excel = false;
-  password.value = "";
-  type.value = "password";
-  files.value = null;
-  success.value = false;
-  errorMessage.value = "";
+const handleUpload = async () => {
+  if (!selectedFile.value[0]) return;
+  try {
+    await updateProducts(selectedFile.value[0]);
+    showSnackbar({ text: '¡Lista de productos actualizada con éxito!', color: 'success' });
+    selectedFile.value = []; // Limpiamos el input
+  } catch (error) {
+    showSnackbar({ text: 'Error al cargar el archivo Excel.', color: 'error' });
+  }
 };
 </script>
