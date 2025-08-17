@@ -40,7 +40,7 @@
       <v-btn
         @click="handleUpload"
         :loading="isLoadingUpload"
-        :disabled="!selectedFile"
+        :disabled="selectedFile.length === 0"
         color="success"
         block
         class="mt-4"
@@ -77,7 +77,7 @@ const checkPassword = async () => {
       method: 'POST',
       body: {
         password: passwordInput.value,
-        type: 'uploads' // ✅ Se envía el tipo de acción
+        type: 'uploads'
       }
     });
 
@@ -95,7 +95,7 @@ const checkPassword = async () => {
 };
 
 const handleUpload = async () => {
-  if (!selectedFile.value[0]) return;
+  if (selectedFile.value.length === 0) return;
   try {
     await updateProducts(selectedFile.value[0]);
     showSnackbar({ text: '¡Lista de productos actualizada con éxito!', color: 'success' });
