@@ -1,53 +1,51 @@
 import { Client, Databases, Query } from "node-appwrite";
 
 export default defineEventHandler(async (event) => {
-  const config = useRuntimeConfig();
-  console.log('[ESPÍA 🕵️‍♂️] Se ha recibido una petición de verificación.');
-
+  const config = useRuntimeConfig(event);
   const body = await readBody(event);
-  const inputPassword = body.password;
+  
+  // Ahora esperamos recibir tanto la contraseña como el tipo de acción
+  const { password, type } = body;
 
-  // ESPÍA #1: ¿Qué contraseña está llegando desde el formulario?
-  console.log(`[ESPÍA 🕵️‍♂️] Contraseña recibida del formulario: "${inputPassword}"`);
-
-  if (!inputPassword) {
-    console.log('[ESPÍA 🕵️‍♂️] Error: No se recibió ninguna contraseña en el cuerpo de la petición.');
-    throw createError({ statusCode: 400, statusMessage: 'No se proporcionó contraseña' });
+  if (!password || !type) {
+    throw createError({ 
+      statusCode: 400, 
+      statusMessage: 'Falta la contraseña o el tipo de acción en la petición.' 
+    });
   }
 
+  // Usamos la clave secreta del servidor para tener acceso de administrador
   const client = new Client()
     .setEndpoint(config.public.endpoint)
     .setProject(config.public.project)
     .setKey(config.projectApiKey);
 
   const databases = new Databases(client);
-
+  
   const dbId = config.public.database;
   const collectionId = config.public.cActionPasswords;
 
-  // ESPÍA #2: ¿Estamos usando los IDs correctos?
-  console.log(`[ESPÍA 🕵️‍♂️] Buscando en DB: "${dbId}", Colección: "${collectionId}"`);
-
   try {
+    // La consulta ahora busca un documento que cumpla AMBAS condiciones
     const response = await databases.listDocuments(
       dbId,
       collectionId,
-      [Query.equal('password', inputPassword)]
+      [
+        Query.equal('type', type),             // 1. Que sea del tipo correcto (ej: 'uploads')
+        Query.equal('password', password),     // 2. Y que tenga la contraseña correcta
+        Query.limit(1)                         // Solo necesitamos saber si existe al menos uno
+      ]
     );
 
-    // ESPÍA #3: ¿Qué encontró Appwrite?
-    console.log(`[ESPÍA 🕵️‍♂️] Appwrite encontró ${response.total} documentos que coinciden con la contraseña.`);
+    // Si la respuesta tiene al menos un documento, la contraseña es correcta para esa acción.
+    return { verified: response.documents.length > 0 };
 
-    if (response.total > 0) {
-      console.log('[ESPÍA 🕵️‍♂️] VERIFICACIÓN EXITOSA. Devolviendo { verified: true }');
-      return { verified: true };
-    } else {
-      console.log('[ESPÍA 🕵️‍♂️] VERIFICACIÓN FALLIDA. Devolviendo { verified: false }');
-      return { verified: false };
-    }
   } catch (error: any) {
-    // ESPÍA #4: Si Appwrite da un error directo (ej: no existe la colección)
-    console.error('[ESPÍA 🕵️‍♂️] ¡ERROR DIRECTO DE APPWRITE!', error);
-    throw createError({ statusCode: 500, statusMessage: `Error de Appwrite: ${error.message}` });
+    console.error("Error en la API de verificación de contraseña:", error);
+    // Lanzamos un error para que el frontend sepa que algo salió mal en el servidor
+    throw createError({
+      statusCode: 500,
+      statusMessage: error.message || 'Error al comunicarse con la base de datos.',
+    });
   }
 });
