@@ -9,7 +9,12 @@
         
         <v-card-text>
           <v-row class="mt-1">
-            <v-col cols="12" md="6" class="pa-5">
+            <v-col cols="12" md="4" class="pa-5">
+              <h3 class="text-center mb-5">Gestión de Productos</h3>
+              <ExcelForm />
+            </v-col>
+
+            <v-col cols="12" md="4" class="pa-5">
               <h3 class="text-center mb-5">Opciones de Depósito</h3>
               <div class="d-flex flex-column ga-5">
                 <DepositForm
@@ -22,7 +27,7 @@
               </div>
             </v-col>
 
-            <v-col cols="12" md="6" class="pa-5">
+            <v-col cols="12" md="4" class="pa-5">
               <h3 class="text-center mb-5">Opciones de Cuotas</h3>
               <div class="d-flex flex-column ga-5">
                 <QuoteForm
@@ -51,16 +56,15 @@ import { onMounted } from 'vue';
 import { usePageTitle } from '~/composables/usePageTitle';
 import { useDeposit } from '~/composables/useDeposit';
 import { useQuote } from '~/composables/useQuote';
+// ✅ Importamos el nuevo componente
+import ExcelForm from '~/components/ExcelForm.vue';
 
-// ✅ El script ahora es mucho más simple.
-// Se obtienen las funciones para cargar los datos.
 const { deposits, getDeposits } = useDeposit();
 const { quotes, getQuotes } = useQuote();
 const { setTitle } = usePageTitle();
 
 onMounted(() => {
   setTitle('Configuración');
-  // Nos aseguramos de tener los datos más frescos al visitar la página.
   getDeposits();
   getQuotes();
 });
