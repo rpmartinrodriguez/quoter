@@ -30,7 +30,7 @@ export const useProducts = () => {
       const res = await databases.listDocuments(
         config.public.database,
         COLLECTION_ID,
-        [Query.limit(5000)] // Aumentamos el límite por si tenés muchos productos
+        [Query.limit(5000)]
       );
       products.value = res.documents as unknown as Product[];
     } catch (error) {
