@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
       dbId,
       collectionId,
       [
-        Query.equal('type', type),             // 1. Que sea del tipo correcto (ej: 'uploads')
+        Query.equal('type', uploads),             // 1. Que sea del tipo correcto (ej: 'uploads')
         Query.equal('password', password),     // 2. Y que tenga la contraseña correcta
         Query.limit(1)                         // Solo necesitamos saber si existe al menos uno
       ]
