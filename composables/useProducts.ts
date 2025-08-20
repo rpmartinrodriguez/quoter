@@ -1,9 +1,8 @@
-// composables/useProducts.ts
 import { ref } from "vue";
 import { ID, Query } from "appwrite";
 import readXlsxFile from "read-excel-file";
 
-// Se define la estructura clara de un producto
+// Se define la estructura clara de un producto (sin userId)
 interface Product {
   $id: string;
   detail: string;
