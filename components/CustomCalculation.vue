@@ -98,10 +98,10 @@
                 v-bind="tooltipProps"
                 @click="handleCopyClick(cq)"
               >
-                <v-icon size="small">mdi-content-copy</v-icon>
+                <v-icon size="small">mdi-image-plus</v-icon>
               </v-btn>
             </template>
-            Copiar y Guardar Registro
+            Guardar y Generar Imagen
           </v-tooltip>
         </p>
       </div>
@@ -114,39 +114,23 @@
 
   <v-dialog v-model="dialogs.typeSelection" persistent max-width="450">
     <v-card class="text-center pa-5" rounded="lg">
-      <v-icon size="64" color="primary" class="mb-4">mdi-content-save-question-outline</v-icon>
-      <h3 class="text-h5 font-weight-bold mb-2">Guardar Registro</h3>
+      <v-icon size="64" color="primary" class="mb-4">mdi-camera</v-icon>
+      <h3 class="text-h5 font-weight-bold mb-2">Registro y Cotización</h3>
       <p class="body-1 text-medium-emphasis mb-6 px-4">
-        La información se copió al portapapeles. ¿Cómo deseas guardar este registro?
+        Se generará una imagen de la cotización. ¿Deseas también guardar el registro en la base de datos?
       </p>
       <div class="d-flex flex-column ga-3">
-        <v-btn 
-          color="success" 
-          size="large" 
-          variant="flat" 
-          @click="handleTypeSelected('VENTA')" 
-          prepend-icon="mdi-check-decagram"
-          block
-        >
+        <v-btn color="success" size="large" variant="flat" @click="handleTypeSelected('VENTA')" prepend-icon="mdi-check-decagram" block>
           Confirmar como Venta
         </v-btn>
-        <v-btn 
-          color="info" 
-          size="large" 
-          variant="tonal" 
-          @click="handleTypeSelected('COTIZACIÓN')" 
-          prepend-icon="mdi-file-document-outline"
-          block
-        >
+        <v-btn color="info" size="large" variant="tonal" @click="handleTypeSelected('COTIZACIÓN')" prepend-icon="mdi-file-document-outline" block>
           Guardar como Cotización
         </v-btn>
-        <v-btn 
-          variant="text" 
-          size="small" 
-          @click="dialogs.typeSelection = false" 
-          class="mt-2"
-        >
-          No Guardar
+        <v-btn variant="text" size="small" @click="generateImageOnly" class="mt-2">
+          Sólo Generar Imagen (No Guardar)
+        </v-btn>
+        <v-btn variant="text" size="small" @click="dialogs.typeSelection = false" class="mt-2">
+          Cancelar
         </v-btn>
       </div>
     </v-card>
@@ -161,22 +145,26 @@
         <v-container>
           <v-row>
             <v-col cols="12">
-              <v-text-field
+              <v-autocomplete
                 v-model="clientData.name"
-                label="Nombre y Apellido*"
-                required
-              ></v-text-field>
+                :items="clientListForAutocomplete"
+                label="Buscar o Escribir Nombre del Cliente*"
+                @update:search="onClientSearch"
+                variant="outlined"
+              ></v-autocomplete>
             </v-col>
             <v-col cols="12">
               <v-text-field
                 v-model="clientData.address"
                 label="Dirección"
+                variant="outlined"
               ></v-text-field>
             </v-col>
             <v-col cols="12">
               <v-text-field
                 v-model="clientData.phone"
                 label="Celular"
+                variant="outlined"
               ></v-text-field>
             </v-col>
           </v-row>
@@ -193,195 +181,187 @@
           :disabled="!clientData.name"
           :loading="isSaving"
         >
-          Guardar
+          {{ transactionType ? 'Guardar y Generar Imagen' : 'Generar Imagen' }}
         </v-btn>
       </v-card-actions>
     </v-card>
   </v-dialog>
+
+  <div style="position: fixed; left: -9999px; top: -9999px;">
+    <QuoteImage
+      ref="quoteImageComponent"
+      v-if="quoteDataForImage"
+      :clientName="quoteDataForImage.clientName"
+      :products="quoteDataForImage.products"
+      :deposit="quoteDataForImage.deposit"
+      :toFinance="quoteDataForImage.toFinance"
+      :installmentsInfo="quoteDataForImage.installmentsInfo"
+    />
+  </div>
 </template>
 
 <script lang="ts" setup>
-import { ref, reactive, computed } from 'vue';
+import { ref, reactive, computed, watch, nextTick } from 'vue';
 import { useClipboard } from "@vueuse/core";
+import html2canvas from 'html2canvas';
+import QuoteImage from '~/components/QuoteImage.vue';
 import type { ISavedRecord } from '~/composables/useSavedQuotes';
 import { useSnackbar } from '~/composables/useSnackbar';
+import { useClients } from '~/composables/useClients';
 
-// --- PROPS E INTERFACES ---
-interface Product {
-  $id: string;
-  detail: string;
-  price: number;
-  color?: string;
-}
-interface ICalculatedQuote {
-  $id: string;
-  quantity: number;
-  percentage: number;
-  amount: string;
-}
-const props = defineProps<{
-  products: Product[];
-  total: number;
-}>();
+interface Product { $id: string; detail: string; price: number; color?: string; }
+interface ICalculatedQuote { $id: string; quantity: number; percentage: number; amount: string; }
+const props = defineProps<{ products: Product[]; total: number; }>();
 const emit = defineEmits<{ (e: 'deselect-product', product: Product): void; }>();
 
-
-// --- COMPOSABLES Y ESTADO ---
 const { formatAsArs } = useFormatters();
 const { quotes } = useQuote();
 const { deposits } = useDeposit();
 const { saveRecord, isLoading: isSaving } = useSavedQuotes();
 const { showSnackbar } = useSnackbar();
+const { clients, addClient } = useClients();
 
 const customTotal = ref<number>();
 const customDeposit = ref<number>();
-
-const dialogs = reactive({
-  typeSelection: false,
-  clientForm: false,
-});
-const clientData = reactive({
-  name: '',
-  address: '',
-  phone: '',
-});
-const transactionType = ref<'VENTA' | 'COTIZACIÓN'>('COTIZACIÓN');
+const dialogs = reactive({ typeSelection: false, clientForm: false });
+const clientData = reactive({ name: '', address: '', phone: '' });
+const transactionType = ref<'VENTA' | 'COTIZACIÓN' | null>(null);
 const lastQuoteCopied = ref<ICalculatedQuote | null>(null);
+const quoteImageComponent = ref<InstanceType<typeof QuoteImage> | null>(null);
+const quoteDataForImage = ref<any>(null);
 
-
-// --- LÓGICA DE CÁLCULO ---
 const depositOptions = computed(() => {
   const baseTotal = customTotal.value ?? props.total;
   if (!baseTotal || !deposits.value || deposits.value.length === 0) return [];
-  
-  return deposits.value.map(dep => {
-    const amount = (baseTotal * dep.percentage) / 100;
-    return {
-      percentage: dep.percentage,
-      amount,
-      label: `${dep.percentage}%`
-    };
-  }).sort((a, b) => b.percentage - a.percentage);
+  return deposits.value.map(dep => ({
+    percentage: dep.percentage,
+    amount: (baseTotal * dep.percentage) / 100,
+    label: `${dep.percentage}%`
+  })).sort((a, b) => b.percentage - a.percentage);
 });
-
 const toFinance = computed(() => {
   if (!customDeposit.value) return 0;
   const baseTotal = customTotal.value ?? props.total;
   if (customDeposit.value > baseTotal) return 0;
   return baseTotal - customDeposit.value;
 });
-
 const calculatedQuotes = computed<ICalculatedQuote[]>(() => {
   if (toFinance.value <= 0 || !quotes.value) return [];
-  return quotes.value.map((q) => {
-    const amount = (toFinance.value * q.percentage) / 100;
-    return {
-      $id: q.$id,
-      quantity: q.quantity,
-      percentage: q.percentage,
-      amount: formatAsArs(Math.round(amount)),
-    };
-  });
+  return quotes.value.map((q) => ({
+    $id: q.$id,
+    quantity: q.quantity,
+    percentage: q.percentage,
+    amount: formatAsArs(Math.round((toFinance.value * q.percentage) / 100)),
+  }));
+});
+const showQuotes = computed(() => calculatedQuotes.value.length > 0);
+const clientListForAutocomplete = computed(() => clients.value.map(c => c.clientName));
+
+watch(() => clientData.name, (newName) => {
+  if (newName) {
+    const existingClient = clients.value.find(c => c.clientName === newName);
+    if (existingClient) {
+      clientData.address = existingClient.address || '';
+      clientData.phone = existingClient.phone || '';
+    }
+  }
 });
 
-const showQuotes = computed(() => calculatedQuotes.value.length > 0);
+const handleDeselect = (productToDeselect: Product) => { emit('deselect-product', productToDeselect); };
+const selectDeposit = (amount: number) => { customDeposit.value = Math.round(amount); };
+const parseNumericInput = (value: string): number | undefined => { const num = parseFloat(value); return isNaN(num) ? undefined : num; };
+const setCustomTotal = (value: string) => { customTotal.value = parseNumericInput(value); };
+const setCustomDeposit = (value: string) => { customDeposit.value = parseNumericInput(value); };
 
-
-// --- MÉTODOS ---
-const handleDeselect = (productToDeselect: Product) => {
-  emit('deselect-product', productToDeselect);
+const generateAndDownloadImage = async () => {
+  await nextTick();
+  const element = quoteImageComponent.value?.quoteRef;
+  if (!element) {
+    showSnackbar({ text: 'Error al generar la imagen.', color: 'error' });
+    return;
+  }
+  try {
+    const canvas = await html2canvas(element, { scale: 2 });
+    const image = canvas.toDataURL('image/png', 1.0);
+    const link = document.createElement('a');
+    link.href = image;
+    link.download = `cotizacion-${quoteDataForImage.value?.clientName.replace(/\s/g, '_') || 'cliente'}.png`;
+    link.click();
+    showSnackbar({ text: '¡Imagen descargada!', color: 'success' });
+  } catch (error) {
+    showSnackbar({ text: 'No se pudo generar la imagen.', color: 'error' });
+  }
 };
-
-const selectDeposit = (amount: number) => {
-  customDeposit.value = Math.round(amount);
-};
-
-const parseNumericInput = (value: string): number | undefined => {
-  const num = parseFloat(value);
-  return isNaN(num) ? undefined : num;
-};
-
-const setCustomTotal = (value: string) => {
-  customTotal.value = parseNumericInput(value);
-};
-
-const setCustomDeposit = (value: string) => {
-  customDeposit.value = parseNumericInput(value);
-};
-
-const source = ref("");
-const { copy } = useClipboard({ source });
-
 const handleCopyClick = (quote: ICalculatedQuote) => {
   lastQuoteCopied.value = quote;
-  const productNames = props.products.map(p => p.detail);
-  const depositStr = formatAsArs(customDeposit.value || 0);
-  const quoteAmount = quote.amount;
-
-  source.value = `Hola!!
-Quería agradecerte por la excelente decisión que tomaste. Te hacemos un breve resumen para que tengas toda la información a mano:
-
-\t•\t*Pieza${productNames.length > 1 ? `s: ${productNames.join(", ")}` : `: ${productNames[0]}`}*
-\t•\tDepósito inicial: ${depositStr}
-\t•\tCantidad de cuotas: ${quote.quantity}
-\t•\tValor de cada cuota: ${quoteAmount}
-
-Estamos seguros de que esta decisión cumplirá con todas tus expectativas. Cualquier consulta o duda que tengas, no dudes en contactarnos. ¡Gracias por confiar en nosotros! Royal Prestige!
-
-A continuación, unos links de interés:
-
-\t•\tCurado de Ollas: https://www.youtube.com/watch?v=m0SAopwbgxc
-\t•\tRecetas: https://www.royalprestige.com/ar/inspiracion/recetas
-\t•\tInstagram: https://www.instagram.com/royalprestigeargoficial`;
-
-  copy(source.value);
-
-  showSnackbar({ text: '¡Texto copiado al portapapeles!', color: 'info' });
-
   dialogs.typeSelection = true;
 };
-
 const handleTypeSelected = (type: 'VENTA' | 'COTIZACIÓN') => {
   transactionType.value = type;
   dialogs.typeSelection = false;
   dialogs.clientForm = true;
 };
-
+const generateImageOnly = () => {
+  transactionType.value = null;
+  dialogs.typeSelection = false;
+  dialogs.clientForm = true;
+};
 const closeAndResetForms = () => {
   dialogs.clientForm = false;
-  clientData.name = '';
-  clientData.address = '';
-  clientData.phone = '';
+  dialogs.typeSelection = false;
+  clientData.name = ''; clientData.address = ''; clientData.phone = '';
+  quoteDataForImage.value = null;
+  lastQuoteCopied.value = null;
 };
-
 const handleSaveTransaction = async () => {
   if (!clientData.name || !lastQuoteCopied.value) return;
-
-  const recordToSave: ISavedRecord = {
+  const existingClient = clients.value.find(c => c.clientName.toLowerCase() === clientData.name.toLowerCase());
+  if (!existingClient) {
+    try {
+      await addClient({
+        clientName: clientData.name,
+        address: clientData.address,
+        phone: clientData.phone
+      });
+    } catch (error: any) {
+       showSnackbar({ text: `Error al crear nuevo cliente: ${error.message}`, color: 'error' });
+    }
+  }
+  quoteDataForImage.value = {
     clientName: clientData.name,
-    clientAddress: clientData.address,
-    clientPhone: clientData.phone,
-    type: transactionType.value,
-    quoteDate: new Date().toISOString(),
     products: props.products.map(p => p.detail),
-    totalAmount: customTotal.value ?? props.total,
-    depositAmount: customDeposit.value || 0,
-    installmentsInfo: `${lastQuoteCopied.value.quantity} cuotas de ${lastQuoteCopied.value.amount}`
+    deposit: formatAsArs(customDeposit.value || 0),
+    toFinance: formatAsArs(toFinance.value || 0),
+    installmentsInfo: `${lastQuoteCopied.value.quantity} cuotas de ${lastQuoteCopied.value.amount}`,
   };
+  if (transactionType.value) {
+    const recordToSave: Omit<ISavedRecord, '$id' | 'userId'> = {
+      clientName: clientData.name,
+      clientAddress: clientData.address,
+      clientPhone: clientData.phone,
+      type: transactionType.value,
+      quoteDate: new Date().toISOString(),
+      products: props.products.map(p => p.detail),
+      totalAmount: customTotal.value ?? props.total,
+      depositAmount: customDeposit.value || 0,
+      installmentsInfo: `${lastQuoteCopied.value.quantity} cuotas de ${lastQuoteCopied.value.amount}`
+    };
+    try {
+      await saveRecord(recordToSave);
+      showSnackbar({ text: 'Registro guardado con éxito.', color: 'success' });
+    } catch(e: any) {
+      showSnackbar({ text: `Error al guardar: ${e.message}`, color: 'error' });
+      closeAndResetForms();
+      return;
+    }
+  }
+  await generateAndDownloadImage();
+  closeAndResetForms();
+};
 
-  try {
-    await saveRecord(recordToSave);
-    
-    // ✅ Aquí está el texto de la notificación actualizado como pediste
-    showSnackbar({ 
-      text: '¡Guardado! Ya podés enviar por WhatsApp el resumen al cliente. ¡Solo pegá!', 
-      color: 'success' 
-    });
-
-  } catch(e: any) {
-    showSnackbar({ text: `Error al guardar: ${e.message}`, color: 'error' });
-  } finally {
-    closeAndResetForms();
+const onClientSearch = (val: string) => {
+  if (val && !clientListForAutocomplete.value.includes(val)) {
+    clientData.name = val;
   }
 };
 </script>
