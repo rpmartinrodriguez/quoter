@@ -70,19 +70,19 @@
       <v-card-title>Simulador y Contexto</v-card-title>
       <v-card-text>
         <v-row>
-          <v-col cols="12" md="6">
-            <v-card class="pa-4" variant="outlined" height="100%">
-              <label class="text-overline">Simular Crecimiento (si no hay objetivo)</label>
-              <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2" :disabled="!!salesGoalFromOKR"></v-slider>
-            </v-card>
-          </v-col>
-          <v-col cols="12" md="6">
-            <v-card class="pa-4" variant="outlined" height="100%">
-              <label class="text-overline">Simular Mejora en Tasa de Cierre</label>
-              <v-slider v-model="targetConversionRate" :step="1" thumb-label color="secondary" class="mt-2" :max="100"></v-slider>
-              <div class="text-caption text-center text-grey">Tu tasa de cierre por demo histórica es: {{ demoToSaleRate }}%</div>
-            </v-card>
-          </v-col>
+            <v-col cols="12" md="6">
+              <v-card class="pa-4" variant="outlined" height="100%">
+                <label class="text-overline">Simular Crecimiento (si no hay objetivo)</label>
+                <v-slider v-model="growthPercentage" :step="5" thumb-label color="primary" class="mt-2" :disabled="!!salesGoalFromOKR"></v-slider>
+              </v-card>
+            </v-col>
+            <v-col cols="12" md="6">
+              <v-card class="pa-4" variant="outlined" height="100%">
+                <label class="text-overline">Simular Mejora en Tasa de Cierre</label>
+                <v-slider v-model="targetConversionRate" :step="1" thumb-label color="secondary" class="mt-2" :max="100"></v-slider>
+                <div class="text-caption text-center text-grey">Tu tasa de cierre por demo histórica es: {{ demoToSaleRate }}%</div>
+              </v-card>
+            </v-col>
         </v-row>
         <v-divider class="my-6"></v-divider>
         <v-row>
@@ -121,7 +121,7 @@
         </v-row>
       </v-card-text>
     </v-card>
-
+    
     <v-dialog v-model="dialog.show" persistent max-width="700px">
       <v-card>
         <v-card-title>{{ isEditingGoal ? 'Editar' : 'Definir' }} Objetivo</v-card-title>
