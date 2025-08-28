@@ -1,10 +1,12 @@
 import { computed } from 'vue';
 import { useReferrals, type IReferral } from '~/composables/useReferrals';
 import { useSavedQuotes, type ISavedRecord } from '~/composables/useSavedQuotes';
+import { useGoals } from '~/composables/useGoals'; // Se importa el gestor de objetivos
 
 export const useNotifications = () => {
   const { referrals } = useReferrals();
   const { savedRecords } = useSavedQuotes();
+  const { goals } = useGoals(); // Se obtienen los objetivos
 
   const calculatePaymentEndDate = (record: ISavedRecord): Date | null => {
     if (record.type !== 'VENTA' || !record.installmentsInfo) return null;
@@ -20,13 +22,10 @@ export const useNotifications = () => {
   };
 
   const pendingFollowUpNotifications = computed(() => {
-    // ✅ Obtenemos la fecha de hoy en formato AAAA-MM-DD
     const todayString = new Date().toISOString().slice(0, 10);
-
     return referrals.value
       .filter(r => r.nextFollowUp && r.followUpCompleted !== true)
       .filter(r => {
-        // ✅ Comparamos solo los textos de las fechas, ignorando la hora y zona horaria
         const followUpString = r.nextFollowUp!.slice(0, 10);
         return followUpString <= todayString;
       })
@@ -44,8 +43,6 @@ export const useNotifications = () => {
     const today = new Date();
     const fifteenDaysFromNow = new Date();
     fifteenDaysFromNow.setDate(today.getDate() + 15);
-    
-    // ✅ Hacemos la misma comparación robusta para las fechas de reventa
     const fifteenDaysFromNowString = fifteenDaysFromNow.toISOString().slice(0, 10);
 
     return savedRecords.value
@@ -66,10 +63,29 @@ export const useNotifications = () => {
       }));
   });
 
+  // ✅ Se añade una nueva computada para las notificaciones de OKR
+  const okrCheckinNotification = computed(() => {
+    const now = new Date();
+    const activeGoal = goals.value.find(g => new Date(g.startDate) <= now && new Date(g.endDate) >= now);
+
+    if (activeGoal) {
+      return [{
+        id: `okr-${activeGoal.$id}`,
+        date: new Date(), // Se muestra siempre
+        text: 'Revisión de tu Objetivo Actual',
+        subtitle: `"${activeGoal.objective}". ¡Revisá tu progreso!`,
+        link: `/proyeccion`,
+        icon: 'mdi-flag-checkered'
+      }];
+    }
+    return [];
+  });
+
   const allNotifications = computed(() => {
     const combined = [
       ...pendingFollowUpNotifications.value,
       ...pendingResaleNotifications.value,
+      ...okrCheckinNotification.value, // ✅ Se añade la nueva notificación a la lista
     ];
     return combined.sort((a, b) => a.date.getTime() - b.date.getTime());
   });
